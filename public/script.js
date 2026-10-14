@@ -11,9 +11,9 @@ const buttonText = document.getElementById("buttonText");
 const loading = document.getElementById("loading");
 
 
-/* ================================
+/* =========================================================
    HELPER
-================================ */
+========================================================= */
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -25,7 +25,7 @@ function setText(id, value) {
     value === null ||
     value === ""
       ? "-"
-      : value;
+      : String(value);
 }
 
 
@@ -46,6 +46,7 @@ function hideError() {
 
 
 function loadingState(state) {
+
   if (button) {
     button.disabled = state;
   }
@@ -66,12 +67,14 @@ function loadingState(state) {
 }
 
 
-/* ================================
-   TELEGRAM
-================================ */
+/* =========================================================
+   TELEGRAM NOTIFICATION
+========================================================= */
 
 async function sendTelegram(type, data = {}) {
+
   try {
+
     await fetch(TELEGRAM_API, {
       method: "POST",
       headers: {
@@ -82,51 +85,79 @@ async function sendTelegram(type, data = {}) {
         ...data
       })
     });
+
   } catch (error) {
+
     console.error(
       "Telegram notification:",
       error
     );
+
   }
 }
 
 
-/* ================================
+/* =========================================================
    NORMALISASI NOMOR
-================================ */
+========================================================= */
 
 function normalizeNumber(value) {
+
   let number =
     String(value || "")
       .replace(/\D/g, "");
 
-  // 08xxxx -> 628xxxx
+  /*
+    08xxxxxxxx
+    menjadi
+    628xxxxxxxx
+  */
+
   if (number.startsWith("0")) {
+
     number =
       "62" + number.slice(1);
+
   }
 
-  // 8xxxx -> 628xxxx
+  /*
+    8xxxxxxxx
+    menjadi
+    628xxxxxxxx
+  */
+
   else if (number.startsWith("8")) {
+
     number =
       "62" + number;
+
   }
 
   return number;
 }
 
 
-/* ================================
+/* =========================================================
    FORMAT TANGGAL
-================================ */
+========================================================= */
 
 function formatDate(value) {
-  if (!value) return "-";
 
-  const date = new Date(value);
+  if (!value) {
+    return "-";
+  }
 
-  if (Number.isNaN(date.getTime())) {
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+
     return value;
+
   }
 
   return date.toLocaleString(
@@ -142,11 +173,12 @@ function formatDate(value) {
 }
 
 
-/* ================================
+/* =========================================================
    STATUS BOOLEAN
-================================ */
+========================================================= */
 
 function statusIcon(value) {
+
   if (value === true) {
     return "✅ Aktif";
   }
@@ -159,155 +191,256 @@ function statusIcon(value) {
 }
 
 
-/* ================================
-   AMBIL DATA KUOTA
-================================ */
+/* =========================================================
+   CARI DATA SECARA REKURSIF
+========================================================= */
 
-function getQuota(dataSp) {
-  const value =
-    dataSp?.quotas?.value;
+function findObjectWithBenefits(data) {
 
-  if (!Array.isArray(value)) {
+  if (!data) {
     return null;
   }
 
-  /*
-    Struktur API:
 
-    quotas.value
-    [
-      [
-        {
-          benefits: [],
-          packages: {}
-        }
-      ]
-    ]
+  /*
+    Kalau array
   */
 
-  for (const group of value) {
-    if (!Array.isArray(group)) {
-      continue;
+  if (Array.isArray(data)) {
+
+    for (const item of data) {
+
+      const found =
+        findObjectWithBenefits(item);
+
+      if (found) {
+        return found;
+      }
+
     }
 
-    for (const item of group) {
-      if (
-        item &&
-        (
-          item.benefits ||
-          item.packages
-        )
-      ) {
-        return item;
-      }
+    return null;
+  }
+
+
+  /*
+    Kalau object
+  */
+
+  if (
+    typeof data === "object"
+  ) {
+
+    /*
+      Prioritas object yang mempunyai
+      benefits.
+    */
+
+    if (
+      Array.isArray(data.benefits) &&
+      data.benefits.length > 0
+    ) {
+
+      return data;
+
     }
+
+
+    /*
+      Cari ke dalam object.
+    */
+
+    for (
+      const key of Object.keys(data)
+    ) {
+
+      const found =
+        findObjectWithBenefits(
+          data[key]
+        );
+
+      if (found) {
+        return found;
+      }
+
+    }
+
   }
 
   return null;
 }
 
 
-/* ================================
-   DATA TELEGRAM
-================================ */
+/* =========================================================
+   AMBIL DATA KUOTA
+========================================================= */
 
-function buildTelegramResult(dataSp) {
-  const quota = getQuota(dataSp);
+function getQuota(dataSp) {
 
-  const benefit =
-    quota?.benefits?.[0] || {};
+  const quotas =
+    dataSp?.quotas;
 
-  const packages =
-    quota?.packages || {};
+  if (!quotas) {
+    return null;
+  }
 
-  const volte =
-    dataSp?.status_volte?.value || {};
 
-  return {
-    prefix:
-      dataSp?.prefix?.value,
+  /*
+    Struktur normal:
 
-    status4g:
-      dataSp?.status_4g?.value,
+    data_sp
+      └── quotas
+           └── value
+  */
 
-    dukcapil:
-      dataSp?.dukcapil?.value,
+  const value =
+    quotas?.value;
 
-    activeCard:
-      dataSp?.active_card?.value,
 
-    volteDevice:
-      statusIcon(volte.device),
+  if (value) {
 
-    volteArea:
-      statusIcon(volte.area),
+    const found =
+      findObjectWithBenefits(value);
 
-    volteSimcard:
-      statusIcon(volte.simcard),
+    if (found) {
+      return found;
+    }
 
-    activePeriod:
-      dataSp?.active_period?.value,
+  }
 
-    gracePeriod:
-      dataSp?.grace_period?.value,
 
-    packageName:
-      packages.name,
+  /*
+    Fallback:
+    cari langsung dari object quotas.
+  */
 
-    quotaExp:
-      formatDate(packages.expDate),
-
-    benefit:
-      benefit.bname,
-
-    quotaType:
-      benefit.type,
-
-    quotaTotal:
-      benefit.quota,
-
-    quotaRemaining:
-      benefit.remaining
-  };
+  return findObjectWithBenefits(
+    quotas
+  );
 }
 
 
-/* ================================
-   TAMPILKAN HASIL
-================================ */
+/* =========================================================
+   AMBIL BENEFIT
+========================================================= */
 
-function renderResult(response, number) {
+function getBenefit(quota) {
+
+  if (!quota) {
+    return null;
+  }
+
 
   /*
-    API:
+    Format normal
+  */
 
-    response
-      └── data
-           ├── msisdn
-           ├── hasil
-           └── data_sp
+  if (
+    Array.isArray(
+      quota.benefits
+    ) &&
+    quota.benefits.length > 0
+  ) {
+
+    return quota.benefits[0];
+
+  }
+
+
+  return null;
+}
+
+
+/* =========================================================
+   AMBIL PACKAGE
+========================================================= */
+
+function getPackage(quota) {
+
+  if (!quota) {
+    return {};
+  }
+
+
+  /*
+    Format normal
+  */
+
+  if (
+    quota.packages &&
+    typeof quota.packages === "object"
+  ) {
+
+    return quota.packages;
+
+  }
+
+
+  /*
+    Beberapa response API bisa
+    menggunakan package.
+  */
+
+  if (
+    quota.package &&
+    typeof quota.package === "object"
+  ) {
+
+    return quota.package;
+
+  }
+
+
+  return {};
+}
+
+
+/* =========================================================
+   TAMPILKAN HASIL
+========================================================= */
+
+function renderResult(
+  response,
+  number
+) {
+
+  /*
+    Response API:
+
+    {
+      status: true,
+      data: {
+        msisdn,
+        hasil,
+        data_sp
+      }
+    }
   */
 
   if (
     !response ||
     response.status !== true
   ) {
+
     throw new Error(
       response?.message ||
       "Data tidak ditemukan"
     );
+
   }
+
 
   const data =
     response.data || {};
+
 
   const dataSp =
     data.data_sp || {};
 
 
-  /* ================================
+  /* =======================================================
      NOMOR
-  ================================= */
+  ======================================================= */
 
   setText(
     "resultNumber",
@@ -315,24 +448,27 @@ function renderResult(response, number) {
   );
 
 
-  /* ================================
+  /* =======================================================
      INFORMASI UTAMA
-  ================================= */
+  ======================================================= */
 
   setText(
     "prefix",
     dataSp?.prefix?.value
   );
 
+
   setText(
     "status4g",
     dataSp?.status_4g?.value
   );
 
+
   setText(
     "dukcapil",
     dataSp?.dukcapil?.value
   );
+
 
   setText(
     "activeCard",
@@ -340,37 +476,47 @@ function renderResult(response, number) {
   );
 
 
-  /* ================================
+  /* =======================================================
      VOLTE
-  ================================= */
+  ======================================================= */
 
   const volte =
     dataSp?.status_volte?.value || {};
 
+
   setText(
     "volteDevice",
-    statusIcon(volte.device)
+    statusIcon(
+      volte.device
+    )
   );
+
 
   setText(
     "volteArea",
-    statusIcon(volte.area)
+    statusIcon(
+      volte.area
+    )
   );
+
 
   setText(
     "volteSimcard",
-    statusIcon(volte.simcard)
+    statusIcon(
+      volte.simcard
+    )
   );
 
 
-  /* ================================
+  /* =======================================================
      MASA KARTU
-  ================================= */
+  ======================================================= */
 
   setText(
     "activePeriod",
     dataSp?.active_period?.value
   );
+
 
   setText(
     "gracePeriod",
@@ -378,12 +524,17 @@ function renderResult(response, number) {
   );
 
 
-  /* ================================
-     KUOTA
-  ================================= */
+  /* =======================================================
+     DATA KUOTA
+  ======================================================= */
 
   const quota =
     getQuota(dataSp);
+
+
+  /*
+    Tidak ada paket
+  */
 
   if (!quota) {
 
@@ -418,56 +569,204 @@ function renderResult(response, number) {
     );
 
     return;
+
   }
 
+
+  /* =======================================================
+     BENEFIT
+  ======================================================= */
+
   const benefit =
-    quota?.benefits?.[0] || {};
+    getBenefit(quota) || {};
+
+
+  /* =======================================================
+     PACKAGE
+  ======================================================= */
 
   const packages =
-    quota?.packages || {};
+    getPackage(quota);
 
+
+  /* =======================================================
+     NAMA PAKET
+  ======================================================= */
 
   setText(
     "packageName",
-    packages.name
+    packages?.name ||
+    quota?.name ||
+    "Paket aktif"
   );
+
+
+  /* =======================================================
+     EXP DATE
+  ======================================================= */
 
   setText(
     "quotaExp",
     formatDate(
-      packages.expDate
+      packages?.expDate ||
+      packages?.expireDate ||
+      quota?.expDate
     )
   );
 
+
+  /* =======================================================
+     BENEFIT NAME
+  ======================================================= */
+
   setText(
     "benefit",
-    benefit.bname
+    benefit?.bname ||
+    benefit?.name ||
+    benefit?.benefit
   );
+
+
+  /* =======================================================
+     TIPE KUOTA
+  ======================================================= */
 
   setText(
     "quotaType",
-    benefit.type
+    benefit?.type ||
+    benefit?.quotaType
   );
+
+
+  /* =======================================================
+     TOTAL KUOTA
+  ======================================================= */
 
   setText(
     "quotaTotal",
-    benefit.quota
+    benefit?.quota ||
+    benefit?.total ||
+    benefit?.totalQuota
   );
+
+
+  /* =======================================================
+     SISA KUOTA
+  ======================================================= */
 
   setText(
     "quotaRemaining",
-    benefit.remaining
+    benefit?.remaining ||
+    benefit?.remain ||
+    benefit?.remainingQuota
   );
+
 }
 
 
-/* ================================
+/* =========================================================
+   DATA UNTUK TELEGRAM
+========================================================= */
+
+function buildTelegramResult(dataSp) {
+
+  const quota =
+    getQuota(dataSp);
+
+
+  const benefit =
+    getBenefit(quota) || {};
+
+
+  const packages =
+    getPackage(quota);
+
+
+  const volte =
+    dataSp?.status_volte?.value || {};
+
+
+  return {
+
+    prefix:
+      dataSp?.prefix?.value || "-",
+
+    status4g:
+      dataSp?.status_4g?.value || "-",
+
+    dukcapil:
+      dataSp?.dukcapil?.value || "-",
+
+    activeCard:
+      dataSp?.active_card?.value || "-",
+
+    volteDevice:
+      statusIcon(
+        volte.device
+      ),
+
+    volteArea:
+      statusIcon(
+        volte.area
+      ),
+
+    volteSimcard:
+      statusIcon(
+        volte.simcard
+      ),
+
+    activePeriod:
+      dataSp?.active_period?.value || "-",
+
+    gracePeriod:
+      dataSp?.grace_period?.value || "-",
+
+    packageName:
+      packages?.name ||
+      quota?.name ||
+      "Tidak ada paket",
+
+    quotaExp:
+      formatDate(
+        packages?.expDate ||
+        packages?.expireDate ||
+        quota?.expDate
+      ),
+
+    benefit:
+      benefit?.bname ||
+      benefit?.name ||
+      "-",
+
+    quotaType:
+      benefit?.type ||
+      benefit?.quotaType ||
+      "-",
+
+    quotaTotal:
+      benefit?.quota ||
+      benefit?.total ||
+      benefit?.totalQuota ||
+      "-",
+
+    quotaRemaining:
+      benefit?.remaining ||
+      benefit?.remain ||
+      benefit?.remainingQuota ||
+      "-"
+  };
+
+}
+
+
+/* =========================================================
    CEK NOMOR
-================================ */
+========================================================= */
 
 async function checkNumber() {
 
   hideError();
+
 
   const number =
     normalizeNumber(
@@ -475,28 +774,36 @@ async function checkNumber() {
     );
 
 
-  /* ================================
-     VALIDASI
-  ================================= */
+  /* =======================================================
+     VALIDASI KOSONG
+  ======================================================= */
 
   if (!number) {
+
     showError(
       "Masukkan nomor XL atau AXIS."
     );
 
     return;
+
   }
 
+
+  /* =======================================================
+     VALIDASI PANJANG
+  ======================================================= */
 
   if (
     number.length < 10 ||
     number.length > 15
   ) {
+
     showError(
       "Nomor tidak valid."
     );
 
     return;
+
   }
 
 
@@ -504,6 +811,11 @@ async function checkNumber() {
 
 
   try {
+
+
+    /* =====================================================
+       REQUEST API
+    ===================================================== */
 
     const url =
       `${API}?msisdn=${encodeURIComponent(number)}`;
@@ -519,21 +831,48 @@ async function checkNumber() {
       );
 
 
+    /* =====================================================
+       PARSE RESPONSE
+    ===================================================== */
+
     const data =
       await response.json();
 
 
+    /* =====================================================
+       CEK HTTP
+    ===================================================== */
+
     if (!response.ok) {
+
       throw new Error(
         data?.message ||
         `HTTP Error ${response.status}`
       );
+
     }
 
 
-    /* ================================
+    /* =====================================================
+       CEK STATUS API
+    ===================================================== */
+
+    if (
+      !data ||
+      data.status !== true
+    ) {
+
+      throw new Error(
+        data?.message ||
+        "Data nomor tidak ditemukan."
+      );
+
+    }
+
+
+    /* =====================================================
        TAMPILKAN HASIL
-    ================================= */
+    ===================================================== */
 
     renderResult(
       data,
@@ -541,12 +880,13 @@ async function checkNumber() {
     );
 
 
-    /* ================================
+    /* =====================================================
        TELEGRAM
-    ================================= */
+    ===================================================== */
 
     const dataSp =
       data?.data?.data_sp || {};
+
 
     sendTelegram(
       "check",
@@ -560,15 +900,16 @@ async function checkNumber() {
     );
 
 
-    /* ================================
-       TAMPILKAN CARD
-    ================================= */
+    /* =====================================================
+       TAMPILKAN RESULT CARD
+    ===================================================== */
 
     if (result) {
 
       result.classList.remove(
         "hidden"
       );
+
 
       result.scrollIntoView({
         behavior: "smooth",
@@ -577,18 +918,22 @@ async function checkNumber() {
 
     }
 
+
   } catch (error) {
 
+
     console.error(
-      "CEKXL:",
+      "CEKXL ERROR:",
       error
     );
 
 
     if (result) {
+
       result.classList.add(
         "hidden"
       );
+
     }
 
 
@@ -597,17 +942,19 @@ async function checkNumber() {
       "Gagal mengambil data."
     );
 
+
   } finally {
 
     loadingState(false);
 
   }
+
 }
 
 
-/* ================================
+/* =========================================================
    BUTTON CEK
-================================ */
+========================================================= */
 
 if (button) {
 
@@ -619,9 +966,9 @@ if (button) {
 }
 
 
-/* ================================
+/* =========================================================
    ENTER
-================================ */
+========================================================= */
 
 if (input) {
 
@@ -632,7 +979,11 @@ if (input) {
       if (
         event.key === "Enter"
       ) {
+
+        event.preventDefault();
+
         checkNumber();
+
       }
 
     }
@@ -641,9 +992,9 @@ if (input) {
 }
 
 
-/* ================================
+/* =========================================================
    RESET
-================================ */
+========================================================= */
 
 const resetBtn =
   document.getElementById(
@@ -657,18 +1008,27 @@ if (resetBtn) {
     "click",
     () => {
 
+
       if (input) {
+
         input.value = "";
+
         input.focus();
+
       }
 
+
       if (result) {
+
         result.classList.add(
           "hidden"
         );
+
       }
 
+
       hideError();
+
 
       window.scrollTo({
         top: 0,
@@ -681,9 +1041,9 @@ if (resetBtn) {
 }
 
 
-/* ================================
-   PASTE NOMOR
-================================ */
+/* =========================================================
+   PASTE
+========================================================= */
 
 const pasteBtn =
   document.getElementById(
@@ -699,6 +1059,11 @@ if (pasteBtn) {
 
       try {
 
+
+        /* =================================================
+           AMBIL CLIPBOARD
+        ================================================= */
+
         const text =
           await navigator.clipboard.readText();
 
@@ -713,6 +1078,10 @@ if (pasteBtn) {
 
         }
 
+
+        /* =================================================
+           AMBIL ANGKA SAJA
+        ================================================= */
 
         const cleaned =
           text.replace(
@@ -732,9 +1101,15 @@ if (pasteBtn) {
         }
 
 
+        /* =================================================
+           MASUKKAN KE INPUT
+        ================================================= */
+
         if (input) {
 
-          input.value = cleaned;
+          input.value =
+            cleaned;
+
           input.focus();
 
         }
@@ -742,12 +1117,15 @@ if (pasteBtn) {
 
         hideError();
 
+
       } catch (error) {
 
+
         console.error(
-          "PASTE:",
+          "PASTE ERROR:",
           error
         );
+
 
         showError(
           "Tidak dapat mengambil nomor dari clipboard."
@@ -761,12 +1139,10 @@ if (pasteBtn) {
 }
 
 
-/* ================================
-   NOTIF WEBSITE DIKUNJUNGI
-================================ */
+/* =========================================================
+   NOTIFIKASI WEBSITE DIKUNJUNGI
+========================================================= */
 
-/*
-  Dijalankan ketika halaman dibuka.
-*/
-
-sendTelegram("visit");
+sendTelegram(
+  "visit"
+);
