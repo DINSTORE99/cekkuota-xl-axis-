@@ -1,5 +1,4 @@
 const API = "/api/cekxl";
-const TELEGRAM_API = "/api/telegram";
 
 const input = document.getElementById("msisdn");
 const button = document.getElementById("checkBtn");
@@ -33,6 +32,7 @@ function showError(message) {
   if (!errorBox) return;
 
   errorBox.textContent = message;
+
   errorBox.classList.remove("hidden");
 }
 
@@ -41,6 +41,7 @@ function hideError() {
   if (!errorBox) return;
 
   errorBox.textContent = "";
+
   errorBox.classList.add("hidden");
 }
 
@@ -68,41 +69,6 @@ function loadingState(state) {
 
 
 /* ================================
-   TELEGRAM
-================================ */
-
-async function sendTelegram(type, data = {}) {
-
-  try {
-
-    await fetch(
-      TELEGRAM_API,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          type,
-          ...data
-        })
-      }
-    );
-
-  } catch (error) {
-
-    console.error(
-      "TELEGRAM ERROR:",
-      error
-    );
-
-  }
-}
-
-
-/* ================================
    NORMALISASI NOMOR
 ================================ */
 
@@ -114,18 +80,14 @@ function normalizeNumber(value) {
 
   // 08xxxx -> 628xxxx
   if (number.startsWith("0")) {
-
     number =
       "62" + number.slice(1);
-
   }
 
   // 8xxxx -> 628xxxx
   else if (number.startsWith("8")) {
-
     number =
       "62" + number;
-
   }
 
   return number;
@@ -138,18 +100,11 @@ function normalizeNumber(value) {
 
 function formatDate(value) {
 
-  if (!value) {
-    return "-";
-  }
+  if (!value) return "-";
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return value;
   }
 
@@ -190,238 +145,49 @@ function statusIcon(value) {
 
 function getQuota(dataSp) {
 
-  let value =
+  const value =
     dataSp?.quotas?.value;
 
-
-  if (!value) {
+  if (!Array.isArray(value)) {
     return null;
   }
 
-
   /*
-    Kalau API mengirim value
-    sebagai JSON string
+    Struktur API:
+
+    quotas.value
+    [
+      [
+        {
+          benefits: [],
+          packages: {}
+        }
+      ]
+    ]
   */
 
-  if (typeof value === "string") {
+  for (const group of value) {
 
-    try {
-
-      value =
-        JSON.parse(value);
-
-    } catch (error) {
-
-      console.error(
-        "QUOTA JSON ERROR:",
-        error
-      );
-
-      return null;
-
+    if (!Array.isArray(group)) {
+      continue;
     }
 
-  }
-
-
-  /*
-    Struktur yang biasa:
-
-    quotas
-      └── value
-           └── [
-                [
-                  {
-                    benefits: [],
-                    packages: {}
-                  }
-                ]
-              ]
-  */
-
-  if (Array.isArray(value)) {
-
-    for (const group of value) {
-
-      /*
-        Group pertama
-      */
-
-      if (Array.isArray(group)) {
-
-        for (const item of group) {
-
-          if (
-            item &&
-            typeof item === "object" &&
-            (
-              item.benefits ||
-              item.packages
-            )
-          ) {
-
-            return item;
-
-          }
-
-        }
-
-      }
-
-
-      /*
-        Jika langsung object
-      */
+    for (const item of group) {
 
       if (
-        group &&
-        typeof group === "object" &&
+        item &&
         (
-          group.benefits ||
-          group.packages
+          item.benefits ||
+          item.packages
         )
       ) {
-
-        return group;
-
+        return item;
       }
 
     }
-
   }
 
-
-  /*
-    Fallback jika struktur API
-    berbeda sedikit.
-  */
-
-  function searchQuota(data) {
-
-    if (!data) {
-      return null;
-    }
-
-
-    if (Array.isArray(data)) {
-
-      for (const item of data) {
-
-        const found =
-          searchQuota(item);
-
-        if (found) {
-          return found;
-        }
-
-      }
-
-      return null;
-    }
-
-
-    if (
-      typeof data === "object"
-    ) {
-
-      /*
-        Prioritas object dengan
-        packages + benefits
-      */
-
-      if (
-        data.packages &&
-        typeof data.packages === "object"
-      ) {
-
-        return data;
-
-      }
-
-
-      if (
-        Array.isArray(data.benefits) &&
-        data.benefits.length > 0
-      ) {
-
-        return data;
-
-      }
-
-
-      for (
-        const key of Object.keys(data)
-      ) {
-
-        const found =
-          searchQuota(data[key]);
-
-        if (found) {
-          return found;
-        }
-
-      }
-
-    }
-
-    return null;
-  }
-
-
-  return searchQuota(value);
-}
-
-
-/* ================================
-   AMBIL BENEFIT
-================================ */
-
-function getQuotaBenefit(quota) {
-
-  if (!quota) {
-    return {};
-  }
-
-
-  if (
-    Array.isArray(
-      quota.benefits
-    ) &&
-    quota.benefits.length > 0
-  ) {
-
-    return quota.benefits[0];
-
-  }
-
-
-  return {};
-}
-
-
-/* ================================
-   AMBIL PACKAGE
-================================ */
-
-function getQuotaPackage(quota) {
-
-  if (!quota) {
-    return {};
-  }
-
-
-  if (
-    quota.packages &&
-    typeof quota.packages === "object"
-  ) {
-
-    return quota.packages;
-
-  }
-
-
-  return {};
+  return null;
 }
 
 
@@ -429,10 +195,7 @@ function getQuotaPackage(quota) {
    TAMPILKAN HASIL
 ================================ */
 
-function renderResult(
-  response,
-  number
-) {
+function renderResult(response, number) {
 
   /*
     API:
@@ -453,21 +216,17 @@ function renderResult(
       response?.message ||
       "Data tidak ditemukan"
     );
-
   }
 
 
   const data =
     response.data || {};
 
-
   const dataSp =
     data.data_sp || {};
 
 
-  /* ================================
-     NOMOR
-  ================================ */
+  /* NOMOR */
 
   setText(
     "resultNumber",
@@ -513,25 +272,19 @@ function renderResult(
 
   setText(
     "volteDevice",
-    statusIcon(
-      volte.device
-    )
+    statusIcon(volte.device)
   );
 
 
   setText(
     "volteArea",
-    statusIcon(
-      volte.area
-    )
+    statusIcon(volte.area)
   );
 
 
   setText(
     "volteSimcard",
-    statusIcon(
-      volte.simcard
-    )
+    statusIcon(volte.simcard)
   );
 
 
@@ -557,18 +310,6 @@ function renderResult(
 
   const quota =
     getQuota(dataSp);
-
-
-  console.log(
-    "DATA QUOTAS:",
-    dataSp?.quotas
-  );
-
-
-  console.log(
-    "QUOTA FOUND:",
-    quota
-  );
 
 
   if (!quota) {
@@ -604,194 +345,52 @@ function renderResult(
     );
 
     return;
-
   }
 
 
   const benefit =
-    getQuotaBenefit(
-      quota
-    );
-
+    quota?.benefits?.[0] || {};
 
   const packages =
-    getQuotaPackage(
-      quota
-    );
+    quota?.packages || {};
 
-
-  /* ================================
-     NAMA PAKET
-  ================================ */
 
   setText(
     "packageName",
-    packages?.name ||
-    quota?.name ||
-    "Paket aktif"
+    packages.name
   );
 
-
-  /* ================================
-     EXPIRED
-  ================================ */
 
   setText(
     "quotaExp",
     formatDate(
-      packages?.expDate ||
-      packages?.expireDate ||
-      quota?.expDate
+      packages.expDate
     )
   );
 
 
-  /* ================================
-     BENEFIT
-  ================================ */
-
   setText(
     "benefit",
-    benefit?.bname ||
-    benefit?.name ||
-    benefit?.benefit
+    benefit.bname
   );
 
-
-  /* ================================
-     TIPE
-  ================================ */
 
   setText(
     "quotaType",
-    benefit?.type ||
-    benefit?.quotaType
+    benefit.type
   );
 
-
-  /* ================================
-     TOTAL KUOTA
-  ================================ */
 
   setText(
     "quotaTotal",
-    benefit?.quota ||
-    benefit?.total ||
-    benefit?.totalQuota
+    benefit.quota
   );
 
-
-  /* ================================
-     SISA KUOTA
-  ================================ */
 
   setText(
     "quotaRemaining",
-    benefit?.remaining ||
-    benefit?.remain ||
-    benefit?.remainingQuota
+    benefit.remaining
   );
-
-}
-
-
-/* ================================
-   DATA HASIL UNTUK TELEGRAM
-================================ */
-
-function getTelegramResult(
-  response
-) {
-
-  const data =
-    response?.data || {};
-
-  const dataSp =
-    data?.data_sp || {};
-
-  const volte =
-    dataSp?.status_volte?.value || {};
-
-  const quota =
-    getQuota(dataSp);
-
-  const benefit =
-    getQuotaBenefit(quota);
-
-  const packages =
-    getQuotaPackage(quota);
-
-
-  return {
-
-    prefix:
-      dataSp?.prefix?.value || "-",
-
-    status4g:
-      dataSp?.status_4g?.value || "-",
-
-    dukcapil:
-      dataSp?.dukcapil?.value || "-",
-
-    activeCard:
-      dataSp?.active_card?.value || "-",
-
-    volteDevice:
-      statusIcon(
-        volte.device
-      ),
-
-    volteArea:
-      statusIcon(
-        volte.area
-      ),
-
-    volteSimcard:
-      statusIcon(
-        volte.simcard
-      ),
-
-    activePeriod:
-      dataSp?.active_period?.value || "-",
-
-    gracePeriod:
-      dataSp?.grace_period?.value || "-",
-
-    packageName:
-      packages?.name ||
-      quota?.name ||
-      "Tidak ada paket",
-
-    quotaExp:
-      formatDate(
-        packages?.expDate ||
-        packages?.expireDate ||
-        quota?.expDate
-      ),
-
-    benefit:
-      benefit?.bname ||
-      benefit?.name ||
-      "-",
-
-    quotaType:
-      benefit?.type ||
-      benefit?.quotaType ||
-      "-",
-
-    quotaTotal:
-      benefit?.quota ||
-      benefit?.total ||
-      benefit?.totalQuota ||
-      "-",
-
-    quotaRemaining:
-      benefit?.remaining ||
-      benefit?.remain ||
-      benefit?.remainingQuota ||
-      "-"
-  };
-
 }
 
 
@@ -803,16 +402,11 @@ async function checkNumber() {
 
   hideError();
 
-
   const number =
-    normalizeNumber(
-      input?.value
-    );
+    normalizeNumber(input?.value);
 
 
-  /* ================================
-     VALIDASI
-  ================================ */
+  /* VALIDASI */
 
   if (!number) {
 
@@ -821,7 +415,6 @@ async function checkNumber() {
     );
 
     return;
-
   }
 
 
@@ -835,7 +428,6 @@ async function checkNumber() {
     );
 
     return;
-
   }
 
 
@@ -844,36 +436,20 @@ async function checkNumber() {
 
   try {
 
-
-    /* ================================
-       REQUEST API
-    ================================ */
-
     const url =
       `${API}?msisdn=${encodeURIComponent(number)}`;
 
 
     const response =
-      await fetch(
-        url,
-        {
-          method: "GET",
-          cache: "no-store"
-        }
-      );
+      await fetch(url, {
+        method: "GET",
+        cache: "no-store"
+      });
 
-
-    /* ================================
-       RESPONSE
-    ================================ */
 
     const data =
       await response.json();
 
-
-    /* ================================
-       HTTP ERROR
-    ================================ */
 
     if (!response.ok) {
 
@@ -885,59 +461,17 @@ async function checkNumber() {
     }
 
 
-    /* ================================
-       API ERROR
-    ================================ */
-
-    if (
-      !data ||
-      data.status !== true
-    ) {
-
-      throw new Error(
-        data?.message ||
-        "Data tidak ditemukan"
-      );
-
-    }
-
-
-    /* ================================
-       RENDER HASIL
-    ================================ */
-
     renderResult(
       data,
       number
     );
 
 
-    /* ================================
-       TELEGRAM
-    ================================ */
-
-    sendTelegram(
-      "check",
-      {
-        number,
-        result:
-          getTelegramResult(
-            data
-          )
-      }
-    );
-
-
-    /* ================================
-       TAMPILKAN RESULT
-    ================================ */
-
     if (result) {
 
       result.classList.remove(
         "hidden"
       );
-
 
       result.scrollIntoView({
         behavior: "smooth",
@@ -946,7 +480,6 @@ async function checkNumber() {
 
     }
 
-
   } catch (error) {
 
     console.error(
@@ -954,33 +487,27 @@ async function checkNumber() {
       error
     );
 
-
     if (result) {
-
       result.classList.add(
         "hidden"
       );
-
     }
-
 
     showError(
       error?.message ||
       "Gagal mengambil data."
     );
 
-
   } finally {
 
     loadingState(false);
 
   }
-
 }
 
 
 /* ================================
-   BUTTON CEK
+   BUTTON
 ================================ */
 
 if (button) {
@@ -1006,8 +533,6 @@ if (input) {
       if (
         event.key === "Enter"
       ) {
-
-        event.preventDefault();
 
         checkNumber();
 
@@ -1036,25 +561,17 @@ if (resetBtn) {
     () => {
 
       if (input) {
-
         input.value = "";
-
         input.focus();
-
       }
 
-
       if (result) {
-
         result.classList.add(
           "hidden"
         );
-
       }
 
-
       hideError();
-
 
       window.scrollTo({
         top: 0,
@@ -1065,96 +582,3 @@ if (resetBtn) {
   );
 
 }
-
-
-/* ================================
-   PASTE
-================================ */
-
-const pasteBtn =
-  document.getElementById(
-    "pasteBtn"
-  );
-
-
-if (pasteBtn) {
-
-  pasteBtn.addEventListener(
-    "click",
-    async () => {
-
-      try {
-
-        const text =
-          await navigator.clipboard.readText();
-
-
-        if (!text) {
-
-          showError(
-            "Clipboard kosong."
-          );
-
-          return;
-
-        }
-
-
-        const cleaned =
-          text.replace(
-            /\D/g,
-            ""
-          );
-
-
-        if (!cleaned) {
-
-          showError(
-            "Clipboard tidak berisi nomor."
-          );
-
-          return;
-
-        }
-
-
-        if (input) {
-
-          input.value =
-            cleaned;
-
-          input.focus();
-
-        }
-
-
-        hideError();
-
-
-      } catch (error) {
-
-        console.error(
-          "PASTE ERROR:",
-          error
-        );
-
-
-        showError(
-          "Tidak dapat mengambil nomor dari clipboard."
-        );
-
-      }
-
-    }
-  );
-
-}
-
-
-/* ================================
-   NOTIFIKASI WEBSITE
-================================ */
-
-sendTelegram(
-  "visit"
-);
