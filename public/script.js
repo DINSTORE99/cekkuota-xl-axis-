@@ -32,7 +32,6 @@ function showError(message) {
   if (!errorBox) return;
 
   errorBox.textContent = message;
-
   errorBox.classList.remove("hidden");
 }
 
@@ -41,7 +40,6 @@ function hideError() {
   if (!errorBox) return;
 
   errorBox.textContent = "";
-
   errorBox.classList.add("hidden");
 }
 
@@ -80,14 +78,18 @@ function normalizeNumber(value) {
 
   // 08xxxx -> 628xxxx
   if (number.startsWith("0")) {
+
     number =
       "62" + number.slice(1);
+
   }
 
   // 8xxxx -> 628xxxx
   else if (number.startsWith("8")) {
+
     number =
       "62" + number;
+
   }
 
   return number;
@@ -181,10 +183,13 @@ function getQuota(dataSp) {
           item.packages
         )
       ) {
+
         return item;
+
       }
 
     }
+
   }
 
   return null;
@@ -216,6 +221,7 @@ function renderResult(response, number) {
       response?.message ||
       "Data tidak ditemukan"
     );
+
   }
 
 
@@ -226,7 +232,9 @@ function renderResult(response, number) {
     data.data_sp || {};
 
 
-  /* NOMOR */
+  /* ================================
+     NOMOR
+  ================================ */
 
   setText(
     "resultNumber",
@@ -403,10 +411,14 @@ async function checkNumber() {
   hideError();
 
   const number =
-    normalizeNumber(input?.value);
+    normalizeNumber(
+      input?.value
+    );
 
 
-  /* VALIDASI */
+  /* ================================
+     VALIDASI
+  ================================ */
 
   if (!number) {
 
@@ -441,10 +453,13 @@ async function checkNumber() {
 
 
     const response =
-      await fetch(url, {
-        method: "GET",
-        cache: "no-store"
-      });
+      await fetch(
+        url,
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
 
 
     const data =
@@ -487,11 +502,15 @@ async function checkNumber() {
       error
     );
 
+
     if (result) {
+
       result.classList.add(
         "hidden"
       );
+
     }
+
 
     showError(
       error?.message ||
@@ -503,11 +522,12 @@ async function checkNumber() {
     loadingState(false);
 
   }
+
 }
 
 
 /* ================================
-   BUTTON
+   BUTTON CEK
 ================================ */
 
 if (button) {
@@ -561,22 +581,111 @@ if (resetBtn) {
     () => {
 
       if (input) {
+
         input.value = "";
         input.focus();
+
       }
 
+
       if (result) {
+
         result.classList.add(
           "hidden"
         );
+
       }
 
+
       hideError();
+
 
       window.scrollTo({
         top: 0,
         behavior: "smooth"
       });
+
+    }
+  );
+
+}
+
+
+/* ================================
+   PASTE NOMOR
+================================ */
+
+const pasteBtn =
+  document.getElementById(
+    "pasteBtn"
+  );
+
+
+if (pasteBtn) {
+
+  pasteBtn.addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        const text =
+          await navigator.clipboard.readText();
+
+
+        if (!text) {
+
+          showError(
+            "Clipboard kosong."
+          );
+
+          return;
+
+        }
+
+
+        // Ambil angka saja
+        const cleaned =
+          text.replace(
+            /\D/g,
+            ""
+          );
+
+
+        if (!cleaned) {
+
+          showError(
+            "Clipboard tidak berisi nomor."
+          );
+
+          return;
+
+        }
+
+
+        if (input) {
+
+          input.value = cleaned;
+          input.focus();
+
+        }
+
+
+        hideError();
+
+      } catch (error) {
+
+        console.error(
+          "PASTE:",
+          error
+        );
+
+
+        showError(
+          "Tidak dapat mengambil nomor dari clipboard."
+        );
+
+      }
 
     }
   );
