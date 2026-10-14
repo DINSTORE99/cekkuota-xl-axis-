@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>CEK XL & AXIS - DIN STORE</title>
+  <title>CEK XL & AXIS — DINSTORE</title>
 
   <meta
     name="description"
-    content="Cek informasi kartu XL dan AXIS dengan mudah."
+    content="Cek informasi kartu XL dan AXIS, status jaringan, masa aktif dan kuota."
   >
 
   <link rel="stylesheet" href="/style.css">
@@ -16,51 +16,72 @@
 
 <body>
 
-  <div class="bg-grid"></div>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <div class="grid"></div>
 
   <main class="container">
 
+    <!-- HEADER -->
     <header class="header">
-      <div class="logo">
-        <div class="logo-icon">D</div>
 
-        <div>
-          <h1>DIN<span>STORE</span></h1>
-          <p>XL & AXIS CHECKER</p>
+      <a href="/" class="brand">
+        <div class="brand-logo">D</div>
+
+        <div class="brand-text">
+          <strong>DIN<span>STORE</span></strong>
+          <small>NETWORK TOOLS</small>
         </div>
+      </a>
+
+      <div class="online">
+        <i></i>
+        <span>API ONLINE</span>
       </div>
 
-      <div class="status">
-        <span></span>
-        API ONLINE
-      </div>
     </header>
 
+
+    <!-- HERO -->
     <section class="hero">
 
-      <div class="badge">
-        ⚡ CEK INFORMASI KARTU
+      <div class="hero-label">
+        <span class="pulse"></span>
+        XL • AXIS • CHECKER
       </div>
 
-      <h2>
-        Cek <span>XL & AXIS</span>
-        <br>
-        dengan cepat
-      </h2>
+      <h1>
+        Cek nomor
+        <span>XL & AXIS</span>
+      </h1>
 
-      <p class="subtitle">
-        Masukkan nomor XL atau AXIS untuk melihat informasi
-        kartu, status jaringan, masa aktif dan detail kuota.
+      <p>
+        Informasi kartu, jaringan, masa aktif dan kuota
+        dalam satu halaman.
       </p>
 
+
+      <!-- CHECKER -->
       <div class="checker">
 
-        <label for="msisdn">
-          NOMOR HP
-        </label>
+        <div class="checker-top">
+          <div>
+            <small>CEK NOMOR HP</small>
+            <strong>Masukkan nomor XL / AXIS</strong>
+          </div>
 
-        <div class="input-wrapper">
-          <span>+62</span>
+          <div class="secure">
+            <span>●</span> SECURE
+          </div>
+        </div>
+
+
+        <div class="input-box">
+
+          <div class="country">
+            <span>🇮🇩</span>
+            <strong>+62</strong>
+          </div>
 
           <input
             id="msisdn"
@@ -70,157 +91,287 @@
             placeholder="838xxxxxxxx"
             maxlength="15"
           >
+
         </div>
 
-        <button id="checkBtn">
-          <span id="btnText">CEK SEKARANG</span>
+
+        <button id="checkBtn" class="check-btn">
+
+          <span id="buttonText">
+            <b>CEK SEKARANG</b>
+            <span class="arrow">→</span>
+          </span>
+
           <span id="loading" class="loading hidden"></span>
+
         </button>
 
+
         <div id="error" class="error hidden"></div>
+
+
+        <div class="checker-info">
+          <span>✓ Cepat</span>
+          <span>✓ Aman</span>
+          <span>✓ Tanpa login</span>
+        </div>
 
       </div>
 
     </section>
 
+
+    <!-- RESULT -->
     <section id="result" class="result hidden">
 
-      <div class="result-header">
-        <div>
-          <p class="small-title">HASIL PENGECEKAN</p>
-          <h3 id="resultNumber">-</h3>
+      <!-- RESULT HEADER -->
+      <div class="result-main">
+
+        <div class="result-number">
+
+          <div class="result-icon">
+            📱
+          </div>
+
+          <div>
+            <small>HASIL PENGECEKAN</small>
+            <h2 id="resultNumber">-</h2>
+          </div>
+
         </div>
 
-        <div class="success-badge">
-          ✓ SUCCESS
+        <div class="success">
+          <i></i>
+          SUCCESS
         </div>
+
       </div>
 
-      <div class="cards">
+
+      <!-- BASIC INFORMATION -->
+      <div class="section-heading">
+        <span>01</span>
+        INFORMASI KARTU
+      </div>
+
+      <div class="info-grid">
 
         <div class="info-card">
-          <div class="card-icon">📱</div>
+          <div class="info-icon blue">SIM</div>
+
           <div>
-            <span>Tipe Kartu</span>
+            <small>Tipe Kartu</small>
             <strong id="prefix">-</strong>
           </div>
         </div>
 
+
         <div class="info-card">
-          <div class="card-icon">📶</div>
+          <div class="info-icon cyan">4G</div>
+
           <div>
-            <span>Status 4G</span>
+            <small>Status Jaringan</small>
             <strong id="status4g">-</strong>
           </div>
         </div>
 
+
         <div class="info-card">
-          <div class="card-icon">🪪</div>
+          <div class="info-icon green">✓</div>
+
           <div>
-            <span>Dukcapil</span>
+            <small>Dukcapil</small>
             <strong id="dukcapil">-</strong>
           </div>
         </div>
 
+
         <div class="info-card">
-          <div class="card-icon">⏳</div>
+          <div class="info-icon purple">⌁</div>
+
           <div>
-            <span>Umur Kartu</span>
-            <strong id="cardAge">-</strong>
+            <small>Umur Kartu</small>
+            <strong id="activeCard">-</strong>
           </div>
         </div>
 
       </div>
 
-      <div class="section">
+
+      <!-- VOLTE -->
+      <div class="result-section">
 
         <div class="section-title">
-          <span>📡</span>
-          STATUS VOLTE
-        </div>
 
-        <div class="volte">
+          <div class="section-title-icon">
+            📡
+          </div>
 
           <div>
-            <span>Device</span>
+            <small>NETWORK STATUS</small>
+            <strong>STATUS VoLTE</strong>
+          </div>
+
+        </div>
+
+
+        <div class="status-grid">
+
+          <div class="status-card">
+            <span>DEVICE</span>
             <strong id="volteDevice">-</strong>
           </div>
 
-          <div>
-            <span>Area</span>
+          <div class="status-card">
+            <span>AREA</span>
             <strong id="volteArea">-</strong>
           </div>
 
-          <div>
-            <span>SIM Card</span>
-            <strong id="volteSim">-</strong>
+          <div class="status-card">
+            <span>SIM CARD</span>
+            <strong id="volteSimcard">-</strong>
           </div>
 
         </div>
 
       </div>
 
-      <div class="section">
+
+      <!-- CARD PERIOD -->
+      <div class="result-section">
 
         <div class="section-title">
-          <span>📅</span>
-          INFORMASI MASA KARTU
-        </div>
 
-        <div class="dates">
-
-          <div>
-            <span>Masa Aktif</span>
-            <strong id="activePeriod">-</strong>
+          <div class="section-title-icon">
+            📅
           </div>
 
           <div>
-            <span>Masa Tenggang</span>
-            <strong id="gracePeriod">-</strong>
+            <small>ACCOUNT INFORMATION</small>
+            <strong>MASA KARTU</strong>
+          </div>
+
+        </div>
+
+
+        <div class="date-grid">
+
+          <div class="date-card">
+
+            <span>MASA AKTIF</span>
+
+            <strong id="activePeriod">
+              -
+            </strong>
+
+          </div>
+
+
+          <div class="date-card">
+
+            <span>MASA TENGGANG</span>
+
+            <strong id="gracePeriod">
+              -
+            </strong>
+
           </div>
 
         </div>
 
       </div>
 
-      <div class="section">
+
+      <!-- QUOTA -->
+      <div class="result-section quota-section">
 
         <div class="section-title">
-          <span>🎁</span>
-          INFORMASI KUOTA
+
+          <div class="section-title-icon">
+            🎁
+          </div>
+
+          <div>
+            <small>PACKAGE INFORMATION</small>
+            <strong>INFORMASI KUOTA</strong>
+          </div>
+
         </div>
 
-        <div class="quota-box">
 
-          <div class="quota-name" id="packageName">
-            -
+        <div class="quota-card">
+
+          <div class="quota-head">
+
+            <div>
+              <small>PAKET AKTIF</small>
+
+              <h3 id="packageName">
+                -
+              </h3>
+            </div>
+
+            <div class="quota-badge">
+              DATA
+            </div>
+
           </div>
+
 
           <div class="quota-exp">
-            Aktif hingga
-            <strong id="quotaExp">-</strong>
+
+            <span>Aktif hingga</span>
+
+            <strong id="quotaExp">
+              -
+            </strong>
+
           </div>
+
 
           <div class="quota-grid">
 
-            <div>
-              <span>Benefit</span>
-              <strong id="benefit">-</strong>
+            <div class="quota-item">
+
+              <span>BENEFIT</span>
+
+              <strong id="benefit">
+                -
+              </strong>
+
             </div>
 
-            <div>
-              <span>Tipe</span>
-              <strong id="quotaType">-</strong>
+
+            <div class="quota-item">
+
+              <span>TIPE</span>
+
+              <strong id="quotaType">
+                -
+              </strong>
+
             </div>
 
-            <div>
-              <span>Kuota</span>
-              <strong id="quotaTotal">-</strong>
+
+            <div class="quota-item">
+
+              <span>TOTAL KUOTA</span>
+
+              <strong id="quotaTotal">
+                -
+              </strong>
+
             </div>
 
-            <div>
-              <span>Sisa</span>
-              <strong id="quotaRemaining">-</strong>
+
+            <div class="quota-item highlight">
+
+              <span>SISA KUOTA</span>
+
+              <strong id="quotaRemaining">
+                -
+              </strong>
+
             </div>
 
           </div>
@@ -229,17 +380,34 @@
 
       </div>
 
+
       <button id="resetBtn" class="reset">
+        <span>↻</span>
         CEK NOMOR LAIN
       </button>
 
     </section>
 
+
+    <!-- FOOTER -->
     <footer>
-      © <span id="year"></span> DIN STORE
+
+      <div class="footer-line"></div>
+
+      <strong>DIN<span>STORE</span></strong>
+
+      <p>
+        XL & AXIS NUMBER CHECKER
+      </p>
+
+      <small>
+        © 2026 DINSTORE. All rights reserved.
+      </small>
+
     </footer>
 
   </main>
+
 
   <script src="/script.js"></script>
 
