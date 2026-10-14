@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>CEK XL & AXIS - DIN STORE</title>
+
+  <meta
+    name="description"
+    content="Cek informasi kartu XL dan AXIS dengan mudah."
+  >
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+  <div class="bg-grid"></div>
+
+  <main class="container">
+
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">D</div>
+
+        <div>
+          <h1>DIN<span>STORE</span></h1>
+          <p>XL & AXIS CHECKER</p>
+        </div>
+      </div>
+
+      <div class="status">
+        <span></span>
+        API ONLINE
+      </div>
+    </header>
+
+    <section class="hero">
+
+      <div class="badge">
+        ⚡ CEK INFORMASI KARTU
+      </div>
+
+      <h2>
+        Cek <span>XL & AXIS</span>
+        <br>
+        dengan cepat
+      </h2>
+
+      <p class="subtitle">
+        Masukkan nomor XL atau AXIS untuk melihat informasi
+        kartu, status jaringan, masa aktif dan detail kuota.
+      </p>
+
+      <div class="checker">
+
+        <label for="msisdn">
+          NOMOR HP
+        </label>
+
+        <div class="input-wrapper">
+          <span>+62</span>
+
+          <input
+            id="msisdn"
+            type="tel"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="838xxxxxxxx"
+            maxlength="15"
+          >
+        </div>
+
+        <button id="checkBtn">
+          <span id="btnText">CEK SEKARANG</span>
+          <span id="loading" class="loading hidden"></span>
+        </button>
+
+        <div id="error" class="error hidden"></div>
+
+      </div>
+
+    </section>
+
+    <section id="result" class="result hidden">
+
+      <div class="result-header">
+        <div>
+          <p class="small-title">HASIL PENGECEKAN</p>
+          <h3 id="resultNumber">-</h3>
+        </div>
+
+        <div class="success-badge">
+          ✓ SUCCESS
+        </div>
+      </div>
+
+      <div class="cards">
+
+        <div class="info-card">
+          <div class="card-icon">📱</div>
+          <div>
+            <span>Tipe Kartu</span>
+            <strong id="prefix">-</strong>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-icon">📶</div>
+          <div>
+            <span>Status 4G</span>
+            <strong id="status4g">-</strong>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-icon">🪪</div>
+          <div>
+            <span>Dukcapil</span>
+            <strong id="dukcapil">-</strong>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-icon">⏳</div>
+          <div>
+            <span>Umur Kartu</span>
+            <strong id="cardAge">-</strong>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="section">
+
+        <div class="section-title">
+          <span>📡</span>
+          STATUS VOLTE
+        </div>
+
+        <div class="volte">
+
+          <div>
+            <span>Device</span>
+            <strong id="volteDevice">-</strong>
+          </div>
+
+          <div>
+            <span>Area</span>
+            <strong id="volteArea">-</strong>
+          </div>
+
+          <div>
+            <span>SIM Card</span>
+            <strong id="volteSim">-</strong>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="section">
+
+        <div class="section-title">
+          <span>📅</span>
+          INFORMASI MASA KARTU
+        </div>
+
+        <div class="dates">
+
+          <div>
+            <span>Masa Aktif</span>
+            <strong id="activePeriod">-</strong>
+          </div>
+
+          <div>
+            <span>Masa Tenggang</span>
+            <strong id="gracePeriod">-</strong>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="section">
+
+        <div class="section-title">
+          <span>🎁</span>
+          INFORMASI KUOTA
+        </div>
+
+        <div class="quota-box">
+
+          <div class="quota-name" id="packageName">
+            -
+          </div>
+
+          <div class="quota-exp">
+            Aktif hingga
+            <strong id="quotaExp">-</strong>
+          </div>
+
+          <div class="quota-grid">
+
+            <div>
+              <span>Benefit</span>
+              <strong id="benefit">-</strong>
+            </div>
+
+            <div>
+              <span>Tipe</span>
+              <strong id="quotaType">-</strong>
+            </div>
+
+            <div>
+              <span>Kuota</span>
+              <strong id="quotaTotal">-</strong>
+            </div>
+
+            <div>
+              <span>Sisa</span>
+              <strong id="quotaRemaining">-</strong>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <button id="resetBtn" class="reset">
+        CEK NOMOR LAIN
+      </button>
+
+    </section>
+
+    <footer>
+      © <span id="year"></span> DIN STORE
+    </footer>
+
+  </main>
+
+  <script src="/script.js"></script>
+
+</body>
+</html>
