@@ -1,4 +1,26 @@
 export default async function handler(req, res) {
+  // CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  if (req.method !== "GET") {
+    return res.status(405).json({
+      status: false,
+      message: "Method tidak diizinkan"
+    });
+  }
+
   try {
     const { msisdn } = req.query;
 
@@ -9,34 +31,51 @@ export default async function handler(req, res) {
       });
     }
 
-    const nomor = String(msisdn).replace(/\D/g, "");
+    // Hanya angka
+    const number = String(msisdn).replace(/\D/g, "");
 
-    if (!/^62\d{8,15}$/.test(nomor)) {
+    if (!number) {
       return res.status(400).json({
         status: false,
-        message: "Format nomor tidak valid. Gunakan format 628xxxx"
+        message: "Nomor tidak valid"
       });
     }
 
-    const response = await fetch(
-      `https://api.dns-server.biz.id/api/cekxl?msisdn=${encodeURIComponent(nomor)}`,
-      {
-        method: "GET",
-        headers: {
-          "x-proxy-token": "bakul_paket"
-        }
-      }
-    );
+    const apiUrl =
+      "https://api.dns-server.biz.id/api/cekxl?msisdn=" +
+      encodeURIComponent(number);
 
-    const data = await response.json();
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-proxy-token": "bakul_paket"
+      }
+    });
+
+    const text = await response.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        status: false,
+        message: "API utama mengembalikan response bukan JSON",
+        raw: text
+      });
+    }
 
     return res.status(response.status).json(data);
+
   } catch (error) {
-    console.error(error);
+
+    console.error("CEKXL ERROR:", error);
 
     return res.status(500).json({
       status: false,
-      message: "Server API sedang tidak dapat dihubungi"
+      message: "Gagal menghubungi API cek XL/AXIS",
+      error: error.message
     });
   }
 }
