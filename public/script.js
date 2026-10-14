@@ -1,294 +1,584 @@
-const msisdnInput = document.getElementById("msisdn");
-const checkBtn = document.getElementById("checkBtn");
-const btnText = document.getElementById("btnText");
+const API = "/api/cekxl";
+
+const input = document.getElementById("msisdn");
+const button = document.getElementById("checkBtn");
+
+const result = document.getElementById("result");
+const errorBox = document.getElementById("error");
+
+const buttonText = document.getElementById("buttonText");
 const loading = document.getElementById("loading");
 
-const errorBox = document.getElementById("error");
-const result = document.getElementById("result");
 
-const year = document.getElementById("year");
+/* ================================
+   HELPER
+================================ */
 
-year.textContent = new Date().getFullYear();
+function setText(id, value) {
+  const el = document.getElementById(id);
 
-function normalizeNumber(value) {
-  let number = String(value || "")
-    .replace(/\D/g, "");
+  if (!el) return;
 
-  if (number.startsWith("0")) {
-    number = "62" + number.substring(1);
+  el.textContent =
+    value === undefined ||
+    value === null ||
+    value === ""
+      ? "-"
+      : value;
+}
+
+
+function showError(message) {
+  if (!errorBox) return;
+
+  errorBox.textContent = message;
+
+  errorBox.classList.remove("hidden");
+}
+
+
+function hideError() {
+  if (!errorBox) return;
+
+  errorBox.textContent = "";
+
+  errorBox.classList.add("hidden");
+}
+
+
+function loadingState(state) {
+
+  if (!button) return;
+
+  button.disabled = state;
+
+  if (loading) {
+    loading.classList.toggle(
+      "hidden",
+      !state
+    );
   }
 
-  if (number.startsWith("8")) {
-    number = "62" + number;
+  if (buttonText) {
+    buttonText.classList.toggle(
+      "hidden",
+      state
+    );
+  }
+}
+
+
+/* ================================
+   NORMALISASI NOMOR
+================================ */
+
+function normalizeNumber(value) {
+
+  let number =
+    String(value || "")
+      .replace(/\D/g, "");
+
+  // 08xxxx -> 628xxxx
+  if (number.startsWith("0")) {
+    number =
+      "62" + number.slice(1);
+  }
+
+  // 8xxxx -> 628xxxx
+  else if (number.startsWith("8")) {
+    number =
+      "62" + number;
   }
 
   return number;
 }
 
-function formatDate(date) {
-  if (!date) return "-";
 
-  const d = new Date(date);
+/* ================================
+   FORMAT TANGGAL
+================================ */
 
-  if (isNaN(d.getTime())) {
-    return date;
+function formatDate(value) {
+
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
-  return d.toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return date.toLocaleString(
+    "id-ID",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  );
 }
 
-function setLoading(state) {
-  checkBtn.disabled = state;
 
-  if (state) {
-    btnText.classList.add("hidden");
-    loading.classList.remove("hidden");
-  } else {
-    btnText.classList.remove("hidden");
-    loading.classList.add("hidden");
+/* ================================
+   STATUS BOOLEAN
+================================ */
+
+function statusIcon(value) {
+
+  if (value === true) {
+    return "✅ Aktif";
   }
-}
 
-function showError(message) {
-  errorBox.textContent = message;
-  errorBox.classList.remove("hidden");
-}
-
-function hideError() {
-  errorBox.classList.add("hidden");
-}
-
-function setText(id, value) {
-  const el = document.getElementById(id);
-
-  if (el) {
-    el.textContent =
-      value === undefined ||
-      value === null ||
-      value === ""
-        ? "-"
-        : value;
+  if (value === false) {
+    return "❌ Tidak";
   }
+
+  return "-";
 }
 
-function renderResult(data, number) {
 
-  const sp = data?.data_sp || {};
+/* ================================
+   AMBIL DATA KUOTA
+================================ */
 
-  const prefix =
-    sp.prefix?.value ||
-    "-";
+function getQuota(dataSp) {
 
-  const dukcapil =
-    sp.dukcapil?.value ||
-    "-";
+  const value =
+    dataSp?.quotas?.value;
 
-  const volte =
-    sp.status_volte?.value || {};
+  if (!Array.isArray(value)) {
+    return null;
+  }
 
-  const status4g =
-    sp.status_4g?.value ||
-    "-";
+  /*
+    Struktur API:
 
-  const cardAge =
-    sp.active_card?.value ||
-    "-";
+    quotas.value
+    [
+      [
+        {
+          benefits: [],
+          packages: {}
+        }
+      ]
+    ]
+  */
 
-  const activePeriod =
-    sp.active_period?.value ||
-    "-";
+  for (const group of value) {
 
-  const gracePeriod =
-    sp.grace_period?.value ||
-    "-";
+    if (!Array.isArray(group)) {
+      continue;
+    }
 
-  setText("resultNumber", number);
-  setText("prefix", prefix);
-  setText("status4g", status4g);
-  setText("dukcapil", dukcapil);
-  setText("cardAge", cardAge);
+    for (const item of group) {
 
-  setText(
-    "volteDevice",
-    volte.device ? "✅ Aktif" : "❌ Tidak"
-  );
+      if (
+        item &&
+        (
+          item.benefits ||
+          item.packages
+        )
+      ) {
+        return item;
+      }
 
-  setText(
-    "volteArea",
-    volte.area ? "✅ Aktif" : "❌ Tidak"
-  );
-
-  setText(
-    "volteSim",
-    volte.simcard ? "✅ Aktif" : "❌ Tidak"
-  );
-
-  setText("activePeriod", activePeriod);
-  setText("gracePeriod", gracePeriod);
-
-  const quotaGroups =
-    sp.quotas?.value || [];
-
-  let quotaData = null;
-
-  if (
-    quotaGroups.length &&
-    Array.isArray(quotaGroups[0])
-  ) {
-    const group = quotaGroups[0];
-
-    const item = group[0];
-
-    if (item) {
-      quotaData = item;
     }
   }
 
-  if (quotaData) {
+  return null;
+}
 
-    const benefits =
-      quotaData.benefits?.[0] || {};
 
-    const packageInfo =
-      quotaData.packages || {};
+/* ================================
+   TAMPILKAN HASIL
+================================ */
+
+function renderResult(response, number) {
+
+  /*
+    API:
+
+    response
+      └── data
+           ├── msisdn
+           ├── hasil
+           └── data_sp
+  */
+
+  if (
+    !response ||
+    response.status !== true
+  ) {
+
+    throw new Error(
+      response?.message ||
+      "Data tidak ditemukan"
+    );
+  }
+
+
+  const data =
+    response.data || {};
+
+  const dataSp =
+    data.data_sp || {};
+
+
+  /* NOMOR */
+
+  setText(
+    "resultNumber",
+    data.msisdn || number
+  );
+
+
+  /* ================================
+     INFORMASI UTAMA
+  ================================ */
+
+  setText(
+    "prefix",
+    dataSp?.prefix?.value
+  );
+
+
+  setText(
+    "status4g",
+    dataSp?.status_4g?.value
+  );
+
+
+  setText(
+    "dukcapil",
+    dataSp?.dukcapil?.value
+  );
+
+
+  setText(
+    "activeCard",
+    dataSp?.active_card?.value
+  );
+
+
+  /* ================================
+     VOLTE
+  ================================ */
+
+  const volte =
+    dataSp?.status_volte?.value || {};
+
+
+  setText(
+    "volteDevice",
+    statusIcon(volte.device)
+  );
+
+
+  setText(
+    "volteArea",
+    statusIcon(volte.area)
+  );
+
+
+  setText(
+    "volteSimcard",
+    statusIcon(volte.simcard)
+  );
+
+
+  /* ================================
+     MASA KARTU
+  ================================ */
+
+  setText(
+    "activePeriod",
+    dataSp?.active_period?.value
+  );
+
+
+  setText(
+    "gracePeriod",
+    dataSp?.grace_period?.value
+  );
+
+
+  /* ================================
+     KUOTA
+  ================================ */
+
+  const quota =
+    getQuota(dataSp);
+
+
+  if (!quota) {
 
     setText(
       "packageName",
-      packageInfo.name || "-"
+      "Tidak ada paket"
     );
 
     setText(
       "quotaExp",
-      formatDate(packageInfo.expDate)
+      "-"
     );
 
     setText(
       "benefit",
-      benefits.bname || "-"
+      "-"
     );
 
     setText(
       "quotaType",
-      benefits.type || "-"
+      "-"
     );
 
     setText(
       "quotaTotal",
-      benefits.quota || "-"
+      "-"
     );
 
     setText(
       "quotaRemaining",
-      benefits.remaining || "-"
+      "-"
     );
 
-  } else {
-
-    setText("packageName", "Tidak ada paket");
-    setText("quotaExp", "-");
-    setText("benefit", "-");
-    setText("quotaType", "-");
-    setText("quotaTotal", "-");
-    setText("quotaRemaining", "-");
-
+    return;
   }
 
-  result.classList.remove("hidden");
 
-  result.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
+  const benefit =
+    quota?.benefits?.[0] || {};
+
+  const packages =
+    quota?.packages || {};
+
+
+  setText(
+    "packageName",
+    packages.name
+  );
+
+
+  setText(
+    "quotaExp",
+    formatDate(
+      packages.expDate
+    )
+  );
+
+
+  setText(
+    "benefit",
+    benefit.bname
+  );
+
+
+  setText(
+    "quotaType",
+    benefit.type
+  );
+
+
+  setText(
+    "quotaTotal",
+    benefit.quota
+  );
+
+
+  setText(
+    "quotaRemaining",
+    benefit.remaining
+  );
 }
+
+
+/* ================================
+   CEK NOMOR
+================================ */
 
 async function checkNumber() {
 
   hideError();
 
-  const raw = msisdnInput.value.trim();
+  const number =
+    normalizeNumber(input?.value);
 
-  if (!raw) {
-    showError("Masukkan nomor XL atau AXIS terlebih dahulu.");
-    return;
-  }
 
-  const number = normalizeNumber(raw);
+  /* VALIDASI */
 
-  if (!/^62\d{8,15}$/.test(number)) {
+  if (!number) {
+
     showError(
-      "Nomor tidak valid. Contoh: 6283843750924"
+      "Masukkan nomor XL atau AXIS."
     );
+
     return;
   }
 
-  setLoading(true);
+
+  if (
+    number.length < 10 ||
+    number.length > 15
+  ) {
+
+    showError(
+      "Nomor tidak valid."
+    );
+
+    return;
+  }
+
+
+  loadingState(true);
+
 
   try {
 
-    const response = await fetch(
-      `/api/cekxl?msisdn=${encodeURIComponent(number)}`
-    );
+    const url =
+      `${API}?msisdn=${encodeURIComponent(number)}`;
 
-    const data = await response.json();
 
-    if (!response.ok || !data.status) {
+    const response =
+      await fetch(url, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
       throw new Error(
-        data.message ||
-        "Gagal mengambil informasi nomor."
+        data?.message ||
+        `HTTP Error ${response.status}`
       );
+
     }
 
-    renderResult(data, number);
+
+    renderResult(
+      data,
+      number
+    );
+
+
+    if (result) {
+
+      result.classList.remove(
+        "hidden"
+      );
+
+      result.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+
+    }
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "CEKXL:",
+      error
+    );
+
+    if (result) {
+      result.classList.add(
+        "hidden"
+      );
+    }
 
     showError(
-      error.message ||
-      "Terjadi kesalahan saat mengecek nomor."
+      error?.message ||
+      "Gagal mengambil data."
     );
 
   } finally {
 
-    setLoading(false);
+    loadingState(false);
 
   }
 }
 
-checkBtn.addEventListener(
-  "click",
-  checkNumber
-);
 
-msisdnInput.addEventListener(
-  "keydown",
-  event => {
-    if (event.key === "Enter") {
-      checkNumber();
+/* ================================
+   BUTTON
+================================ */
+
+if (button) {
+
+  button.addEventListener(
+    "click",
+    checkNumber
+  );
+
+}
+
+
+/* ================================
+   ENTER
+================================ */
+
+if (input) {
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        checkNumber();
+
+      }
+
     }
-  }
-);
+  );
 
-document
-  .getElementById("resetBtn")
-  .addEventListener("click", () => {
+}
 
-    result.classList.add("hidden");
 
-    msisdnInput.value = "";
+/* ================================
+   RESET
+================================ */
 
-    msisdnInput.focus();
+const resetBtn =
+  document.getElementById(
+    "resetBtn"
+  );
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
 
-  });
+if (resetBtn) {
+
+  resetBtn.addEventListener(
+    "click",
+    () => {
+
+      if (input) {
+        input.value = "";
+        input.focus();
+      }
+
+      if (result) {
+        result.classList.add(
+          "hidden"
+        );
+      }
+
+      hideError();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+
+    }
+  );
+
+}
