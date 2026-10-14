@@ -698,3 +698,75 @@ if (pasteBtn) {
     async () => {
 
       try {
+
+        const text =
+          await navigator.clipboard.readText();
+
+
+        if (!text) {
+
+          showError(
+            "Clipboard kosong."
+          );
+
+          return;
+
+        }
+
+
+        const cleaned =
+          text.replace(
+            /\D/g,
+            ""
+          );
+
+
+        if (!cleaned) {
+
+          showError(
+            "Clipboard tidak berisi nomor."
+          );
+
+          return;
+
+        }
+
+
+        if (input) {
+
+          input.value = cleaned;
+          input.focus();
+
+        }
+
+
+        hideError();
+
+      } catch (error) {
+
+        console.error(
+          "PASTE:",
+          error
+        );
+
+        showError(
+          "Tidak dapat mengambil nomor dari clipboard."
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+/* ================================
+   NOTIF WEBSITE DIKUNJUNGI
+================================ */
+
+/*
+  Dijalankan ketika halaman dibuka.
+*/
+
+sendTelegram("visit");
