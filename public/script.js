@@ -1,4 +1,5 @@
 const API = "/api/cekxl";
+const TELEGRAM_API = "/api/telegram";
 
 const input = document.getElementById("msisdn");
 const button = document.getElementById("checkBtn");
@@ -32,7 +33,6 @@ function showError(message) {
   if (!errorBox) return;
 
   errorBox.textContent = message;
-
   errorBox.classList.remove("hidden");
 }
 
@@ -41,7 +41,6 @@ function hideError() {
   if (!errorBox) return;
 
   errorBox.textContent = "";
-
   errorBox.classList.add("hidden");
 }
 
@@ -69,6 +68,41 @@ function loadingState(state) {
 
 
 /* ================================
+   TELEGRAM
+================================ */
+
+async function sendTelegram(type, data = {}) {
+
+  try {
+
+    await fetch(
+      TELEGRAM_API,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          type,
+          ...data
+        })
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "TELEGRAM ERROR:",
+      error
+    );
+
+  }
+}
+
+
+/* ================================
    NORMALISASI NOMOR
 ================================ */
 
@@ -80,14 +114,18 @@ function normalizeNumber(value) {
 
   // 08xxxx -> 628xxxx
   if (number.startsWith("0")) {
+
     number =
       "62" + number.slice(1);
+
   }
 
   // 8xxxx -> 628xxxx
   else if (number.startsWith("8")) {
+
     number =
       "62" + number;
+
   }
 
   return number;
@@ -100,11 +138,18 @@ function normalizeNumber(value) {
 
 function formatDate(value) {
 
-  if (!value) return "-";
+  if (!value) {
+    return "-";
+  }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
@@ -145,49 +190,238 @@ function statusIcon(value) {
 
 function getQuota(dataSp) {
 
-  const value =
+  let value =
     dataSp?.quotas?.value;
 
-  if (!Array.isArray(value)) {
+
+  if (!value) {
     return null;
   }
 
-  /*
-    Struktur API:
 
-    quotas.value
-    [
-      [
-        {
-          benefits: [],
-          packages: {}
-        }
-      ]
-    ]
+  /*
+    Kalau API mengirim value
+    sebagai JSON string
   */
 
-  for (const group of value) {
+  if (typeof value === "string") {
 
-    if (!Array.isArray(group)) {
-      continue;
+    try {
+
+      value =
+        JSON.parse(value);
+
+    } catch (error) {
+
+      console.error(
+        "QUOTA JSON ERROR:",
+        error
+      );
+
+      return null;
+
     }
 
-    for (const item of group) {
+  }
+
+
+  /*
+    Struktur yang biasa:
+
+    quotas
+      └── value
+           └── [
+                [
+                  {
+                    benefits: [],
+                    packages: {}
+                  }
+                ]
+              ]
+  */
+
+  if (Array.isArray(value)) {
+
+    for (const group of value) {
+
+      /*
+        Group pertama
+      */
+
+      if (Array.isArray(group)) {
+
+        for (const item of group) {
+
+          if (
+            item &&
+            typeof item === "object" &&
+            (
+              item.benefits ||
+              item.packages
+            )
+          ) {
+
+            return item;
+
+          }
+
+        }
+
+      }
+
+
+      /*
+        Jika langsung object
+      */
 
       if (
-        item &&
+        group &&
+        typeof group === "object" &&
         (
-          item.benefits ||
-          item.packages
+          group.benefits ||
+          group.packages
         )
       ) {
-        return item;
+
+        return group;
+
       }
 
     }
+
   }
 
-  return null;
+
+  /*
+    Fallback jika struktur API
+    berbeda sedikit.
+  */
+
+  function searchQuota(data) {
+
+    if (!data) {
+      return null;
+    }
+
+
+    if (Array.isArray(data)) {
+
+      for (const item of data) {
+
+        const found =
+          searchQuota(item);
+
+        if (found) {
+          return found;
+        }
+
+      }
+
+      return null;
+    }
+
+
+    if (
+      typeof data === "object"
+    ) {
+
+      /*
+        Prioritas object dengan
+        packages + benefits
+      */
+
+      if (
+        data.packages &&
+        typeof data.packages === "object"
+      ) {
+
+        return data;
+
+      }
+
+
+      if (
+        Array.isArray(data.benefits) &&
+        data.benefits.length > 0
+      ) {
+
+        return data;
+
+      }
+
+
+      for (
+        const key of Object.keys(data)
+      ) {
+
+        const found =
+          searchQuota(data[key]);
+
+        if (found) {
+          return found;
+        }
+
+      }
+
+    }
+
+    return null;
+  }
+
+
+  return searchQuota(value);
+}
+
+
+/* ================================
+   AMBIL BENEFIT
+================================ */
+
+function getQuotaBenefit(quota) {
+
+  if (!quota) {
+    return {};
+  }
+
+
+  if (
+    Array.isArray(
+      quota.benefits
+    ) &&
+    quota.benefits.length > 0
+  ) {
+
+    return quota.benefits[0];
+
+  }
+
+
+  return {};
+}
+
+
+/* ================================
+   AMBIL PACKAGE
+================================ */
+
+function getQuotaPackage(quota) {
+
+  if (!quota) {
+    return {};
+  }
+
+
+  if (
+    quota.packages &&
+    typeof quota.packages === "object"
+  ) {
+
+    return quota.packages;
+
+  }
+
+
+  return {};
 }
 
 
@@ -195,7 +429,10 @@ function getQuota(dataSp) {
    TAMPILKAN HASIL
 ================================ */
 
-function renderResult(response, number) {
+function renderResult(
+  response,
+  number
+) {
 
   /*
     API:
@@ -216,17 +453,21 @@ function renderResult(response, number) {
       response?.message ||
       "Data tidak ditemukan"
     );
+
   }
 
 
   const data =
     response.data || {};
 
+
   const dataSp =
     data.data_sp || {};
 
 
-  /* NOMOR */
+  /* ================================
+     NOMOR
+  ================================ */
 
   setText(
     "resultNumber",
@@ -272,19 +513,25 @@ function renderResult(response, number) {
 
   setText(
     "volteDevice",
-    statusIcon(volte.device)
+    statusIcon(
+      volte.device
+    )
   );
 
 
   setText(
     "volteArea",
-    statusIcon(volte.area)
+    statusIcon(
+      volte.area
+    )
   );
 
 
   setText(
     "volteSimcard",
-    statusIcon(volte.simcard)
+    statusIcon(
+      volte.simcard
+    )
   );
 
 
@@ -310,6 +557,18 @@ function renderResult(response, number) {
 
   const quota =
     getQuota(dataSp);
+
+
+  console.log(
+    "DATA QUOTAS:",
+    dataSp?.quotas
+  );
+
+
+  console.log(
+    "QUOTA FOUND:",
+    quota
+  );
 
 
   if (!quota) {
@@ -345,52 +604,194 @@ function renderResult(response, number) {
     );
 
     return;
+
   }
 
 
   const benefit =
-    quota?.benefits?.[0] || {};
+    getQuotaBenefit(
+      quota
+    );
+
 
   const packages =
-    quota?.packages || {};
+    getQuotaPackage(
+      quota
+    );
 
+
+  /* ================================
+     NAMA PAKET
+  ================================ */
 
   setText(
     "packageName",
-    packages.name
+    packages?.name ||
+    quota?.name ||
+    "Paket aktif"
   );
 
+
+  /* ================================
+     EXPIRED
+  ================================ */
 
   setText(
     "quotaExp",
     formatDate(
-      packages.expDate
+      packages?.expDate ||
+      packages?.expireDate ||
+      quota?.expDate
     )
   );
 
 
+  /* ================================
+     BENEFIT
+  ================================ */
+
   setText(
     "benefit",
-    benefit.bname
+    benefit?.bname ||
+    benefit?.name ||
+    benefit?.benefit
   );
 
+
+  /* ================================
+     TIPE
+  ================================ */
 
   setText(
     "quotaType",
-    benefit.type
+    benefit?.type ||
+    benefit?.quotaType
   );
 
+
+  /* ================================
+     TOTAL KUOTA
+  ================================ */
 
   setText(
     "quotaTotal",
-    benefit.quota
+    benefit?.quota ||
+    benefit?.total ||
+    benefit?.totalQuota
   );
 
+
+  /* ================================
+     SISA KUOTA
+  ================================ */
 
   setText(
     "quotaRemaining",
-    benefit.remaining
+    benefit?.remaining ||
+    benefit?.remain ||
+    benefit?.remainingQuota
   );
+
+}
+
+
+/* ================================
+   DATA HASIL UNTUK TELEGRAM
+================================ */
+
+function getTelegramResult(
+  response
+) {
+
+  const data =
+    response?.data || {};
+
+  const dataSp =
+    data?.data_sp || {};
+
+  const volte =
+    dataSp?.status_volte?.value || {};
+
+  const quota =
+    getQuota(dataSp);
+
+  const benefit =
+    getQuotaBenefit(quota);
+
+  const packages =
+    getQuotaPackage(quota);
+
+
+  return {
+
+    prefix:
+      dataSp?.prefix?.value || "-",
+
+    status4g:
+      dataSp?.status_4g?.value || "-",
+
+    dukcapil:
+      dataSp?.dukcapil?.value || "-",
+
+    activeCard:
+      dataSp?.active_card?.value || "-",
+
+    volteDevice:
+      statusIcon(
+        volte.device
+      ),
+
+    volteArea:
+      statusIcon(
+        volte.area
+      ),
+
+    volteSimcard:
+      statusIcon(
+        volte.simcard
+      ),
+
+    activePeriod:
+      dataSp?.active_period?.value || "-",
+
+    gracePeriod:
+      dataSp?.grace_period?.value || "-",
+
+    packageName:
+      packages?.name ||
+      quota?.name ||
+      "Tidak ada paket",
+
+    quotaExp:
+      formatDate(
+        packages?.expDate ||
+        packages?.expireDate ||
+        quota?.expDate
+      ),
+
+    benefit:
+      benefit?.bname ||
+      benefit?.name ||
+      "-",
+
+    quotaType:
+      benefit?.type ||
+      benefit?.quotaType ||
+      "-",
+
+    quotaTotal:
+      benefit?.quota ||
+      benefit?.total ||
+      benefit?.totalQuota ||
+      "-",
+
+    quotaRemaining:
+      benefit?.remaining ||
+      benefit?.remain ||
+      benefit?.remainingQuota ||
+      "-"
+  };
+
 }
 
 
@@ -402,11 +803,16 @@ async function checkNumber() {
 
   hideError();
 
+
   const number =
-    normalizeNumber(input?.value);
+    normalizeNumber(
+      input?.value
+    );
 
 
-  /* VALIDASI */
+  /* ================================
+     VALIDASI
+  ================================ */
 
   if (!number) {
 
@@ -415,6 +821,7 @@ async function checkNumber() {
     );
 
     return;
+
   }
 
 
@@ -428,6 +835,7 @@ async function checkNumber() {
     );
 
     return;
+
   }
 
 
@@ -436,20 +844,36 @@ async function checkNumber() {
 
   try {
 
+
+    /* ================================
+       REQUEST API
+    ================================ */
+
     const url =
       `${API}?msisdn=${encodeURIComponent(number)}`;
 
 
     const response =
-      await fetch(url, {
-        method: "GET",
-        cache: "no-store"
-      });
+      await fetch(
+        url,
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
 
+
+    /* ================================
+       RESPONSE
+    ================================ */
 
     const data =
       await response.json();
 
+
+    /* ================================
+       HTTP ERROR
+    ================================ */
 
     if (!response.ok) {
 
@@ -461,17 +885,59 @@ async function checkNumber() {
     }
 
 
+    /* ================================
+       API ERROR
+    ================================ */
+
+    if (
+      !data ||
+      data.status !== true
+    ) {
+
+      throw new Error(
+        data?.message ||
+        "Data tidak ditemukan"
+      );
+
+    }
+
+
+    /* ================================
+       RENDER HASIL
+    ================================ */
+
     renderResult(
       data,
       number
     );
 
 
+    /* ================================
+       TELEGRAM
+    ================================ */
+
+    sendTelegram(
+      "check",
+      {
+        number,
+        result:
+          getTelegramResult(
+            data
+          )
+      }
+    );
+
+
+    /* ================================
+       TAMPILKAN RESULT
+    ================================ */
+
     if (result) {
 
       result.classList.remove(
         "hidden"
       );
+
 
       result.scrollIntoView({
         behavior: "smooth",
@@ -480,6 +946,7 @@ async function checkNumber() {
 
     }
 
+
   } catch (error) {
 
     console.error(
@@ -487,27 +954,33 @@ async function checkNumber() {
       error
     );
 
+
     if (result) {
+
       result.classList.add(
         "hidden"
       );
+
     }
+
 
     showError(
       error?.message ||
       "Gagal mengambil data."
     );
 
+
   } finally {
 
     loadingState(false);
 
   }
+
 }
 
 
 /* ================================
-   BUTTON
+   BUTTON CEK
 ================================ */
 
 if (button) {
@@ -533,6 +1006,8 @@ if (input) {
       if (
         event.key === "Enter"
       ) {
+
+        event.preventDefault();
 
         checkNumber();
 
@@ -561,17 +1036,25 @@ if (resetBtn) {
     () => {
 
       if (input) {
+
         input.value = "";
+
         input.focus();
+
       }
 
+
       if (result) {
+
         result.classList.add(
           "hidden"
         );
+
       }
 
+
       hideError();
+
 
       window.scrollTo({
         top: 0,
@@ -582,3 +1065,96 @@ if (resetBtn) {
   );
 
 }
+
+
+/* ================================
+   PASTE
+================================ */
+
+const pasteBtn =
+  document.getElementById(
+    "pasteBtn"
+  );
+
+
+if (pasteBtn) {
+
+  pasteBtn.addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        const text =
+          await navigator.clipboard.readText();
+
+
+        if (!text) {
+
+          showError(
+            "Clipboard kosong."
+          );
+
+          return;
+
+        }
+
+
+        const cleaned =
+          text.replace(
+            /\D/g,
+            ""
+          );
+
+
+        if (!cleaned) {
+
+          showError(
+            "Clipboard tidak berisi nomor."
+          );
+
+          return;
+
+        }
+
+
+        if (input) {
+
+          input.value =
+            cleaned;
+
+          input.focus();
+
+        }
+
+
+        hideError();
+
+
+      } catch (error) {
+
+        console.error(
+          "PASTE ERROR:",
+          error
+        );
+
+
+        showError(
+          "Tidak dapat mengambil nomor dari clipboard."
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+/* ================================
+   NOTIFIKASI WEBSITE
+================================ */
+
+sendTelegram(
+  "visit"
+);
