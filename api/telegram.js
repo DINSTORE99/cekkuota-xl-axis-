@@ -2,102 +2,97 @@
 
 export default async function handler(req, res) {
 
-  // ==========================================
+  // ==================================================
   // METHOD
-  // ==========================================
+  // ==================================================
 
   if (req.method !== "POST") {
     return res.status(405).json({
-      status: false,
+      success: false,
       message: "Method tidak diizinkan"
     });
   }
 
   try {
 
-    // ==========================================
-    // TELEGRAM TOKEN
-    // ==========================================
-
     const token =
       process.env.TELEGRAM_BOT_TOKEN;
 
-    if (!token) {
-      console.error(
-        "TELEGRAM_BOT_TOKEN belum disetting"
-      );
-
-      return res.status(500).json({
-        status: false,
-        message:
-          "TELEGRAM_BOT_TOKEN belum disetting"
-      });
-    }
-
-
-    // ==========================================
-    // UPDATE TELEGRAM
-    // ==========================================
-
-    const update = req.body;
-
-    const message =
-      update?.message;
-
-    if (!message) {
-      return res.status(200).json({
-        status: true
-      });
-    }
-
-
     const chatId =
-      message?.chat?.id;
+      process.env.TELEGRAM_CHAT_ID;
 
-    const text =
-      message?.text || "";
-
-
-    if (!chatId) {
-      return res.status(200).json({
-        status: true
+    if (!token || !chatId) {
+      return res.status(500).json({
+        success: false,
+        message: "Telegram belum dikonfigurasi"
       });
     }
 
 
-    // ==========================================
-    // /START
-    // ==========================================
+    // ==================================================
+    // BODY
+    // ==================================================
+
+    const body =
+      req.body || {};
+
+
+    // ==================================================
+    // CEK APAKAH INI WEBHOOK TELEGRAM
+    // ==================================================
+
+    const telegramMessage =
+      body?.message;
 
     if (
-      text === "/start" ||
-      text.startsWith("/start ")
+      telegramMessage &&
+      telegramMessage.chat &&
+      telegramMessage.text
     ) {
 
-      await sendMessage(
-        token,
-        chatId,
-        `📱 *XL & AXIS NUMBER CHECKER*
+      const userChatId =
+        telegramMessage.chat.id;
+
+      const text =
+        String(
+          telegramMessage.text
+        ).trim();
+
+
+      // ==================================================
+      // /START
+      // ==================================================
+
+      if (
+        text === "/start" ||
+        text.startsWith("/start ")
+      ) {
+
+        await sendTelegram(
+          token,
+          userChatId,
+
+`📱 <b>XL &amp; AXIS NUMBER CHECKER</b>
 
 Selamat datang 👋
 
-Bot ini digunakan untuk mengecek informasi nomor XL / AXIS.
+Bot ini dapat digunakan untuk mengecek informasi nomor XL / AXIS.
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 
-🔍 *Cara menggunakan*
+🔎 <b>Cara menggunakan</b>
 
 Kirim:
 
-\`/cek 083843750924\`
+<code>/cek 083843750924</code>
 
-atau:
+Atau:
 
-\`/cek 6283843750924\`
+<code>/cek 6283843750924</code>
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 
-📊 *Informasi yang tersedia*
+📊 <b>Informasi yang tersedia</b>
 
 • Prefix
 • Status 4G
@@ -105,596 +100,725 @@ atau:
 • Status kartu
 • Status VoLTE
 • Masa aktif
-• Grace period
+• Masa tenggang
 • Paket
-• Masa berlaku
 • Benefit
 • Total kuota
 • Sisa kuota
+• Expired paket
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 
-⚡ *XL & AXIS NUMBER CHECKER*`
-      );
-
-      return res.status(200).json({
-        status: true
-      });
-    }
-
-
-    // ==========================================
-    // /HELP
-    // ==========================================
-
-    if (
-      text === "/help" ||
-      text === "/bantuan"
-    ) {
-
-      await sendMessage(
-        token,
-        chatId,
-        `ℹ️ *BANTUAN*
-
-Gunakan perintah:
-
-🔍 /cek 083843750924
-
-Contoh:
-
-\`/cek 083843750924\`
-
-Nomor juga bisa menggunakan format:
-
-\`083843750924\`
-
-atau:
-
-\`6283843750924\`
-
-━━━━━━━━━━━━━━━━━━
-
-📱 XL & AXIS NUMBER CHECKER`
-      );
-
-      return res.status(200).json({
-        status: true
-      });
-    }
-
-
-    // ==========================================
-    // CEK NOMOR
-    // ==========================================
-
-    if (
-      text === "/cek" ||
-      text.startsWith("/cek ")
-    ) {
-
-      const parts =
-        text.trim().split(/\s+/);
-
-      // Tidak ada nomor
-      if (!parts[1]) {
-
-        await sendMessage(
-          token,
-          chatId,
-          `❌ *Nomor belum dimasukkan.*
-
-Contoh:
-
-\`/cek 083843750924\``
+⚡ <b>XL &amp; AXIS CHECKER</b>`
         );
 
         return res.status(200).json({
-          status: true
+          success: true
         });
       }
 
 
-      // ========================================
-      // NORMALISASI NOMOR
-      // ========================================
-
-      let number =
-        String(parts[1])
-          .replace(/\D/g, "");
-
-
-      // 08xxxx
-      if (
-        number.startsWith("0")
-      ) {
-
-        number =
-          "62" +
-          number.slice(1);
-      }
-
-
-      // 8xxxx
-      else if (
-        number.startsWith("8")
-      ) {
-
-        number =
-          "62" +
-          number;
-      }
-
-
-      // ========================================
-      // VALIDASI
-      // ========================================
+      // ==================================================
+      // /HELP
+      // ==================================================
 
       if (
-        !number.startsWith("62")
+        text === "/help"
       ) {
 
-        await sendMessage(
+        await sendTelegram(
           token,
-          chatId,
-          `❌ *Nomor tidak valid.*
+          userChatId,
+
+`ℹ️ <b>BANTUAN</b>
+
+Gunakan perintah:
+
+<code>/cek 083843750924</code>
+
+Contoh:
+
+<code>/cek 083843750924</code>
+
+atau:
+
+<code>/cek 6283843750924</code>
+
+━━━━━━━━━━━━━━
+
+📱 <b>XL &amp; AXIS NUMBER CHECKER</b>`
+        );
+
+        return res.status(200).json({
+          success: true
+        });
+      }
+
+
+      // ==================================================
+      // /CEK
+      // ==================================================
+
+      if (
+        text === "/cek" ||
+        text.startsWith("/cek ")
+      ) {
+
+        const parts =
+          text
+            .trim()
+            .split(/\s+/);
+
+
+        if (!parts[1]) {
+
+          await sendTelegram(
+            token,
+            userChatId,
+
+`❌ <b>Nomor belum dimasukkan</b>
+
+Contoh:
+
+<code>/cek 083843750924</code>`
+          );
+
+          return res.status(200).json({
+            success: true
+          });
+        }
+
+
+        // ==================================================
+        // NORMALISASI NOMOR
+        // ==================================================
+
+        let number =
+          String(parts[1])
+            .replace(/\D/g, "");
+
+
+        // 08xxxx → 628xxxx
+
+        if (
+          number.startsWith("0")
+        ) {
+
+          number =
+            "62" +
+            number.slice(1);
+
+        }
+
+
+        // 8xxxx → 628xxxx
+
+        else if (
+          number.startsWith("8")
+        ) {
+
+          number =
+            "62" +
+            number;
+
+        }
+
+
+        // ==================================================
+        // VALIDASI
+        // ==================================================
+
+        if (
+          !number.startsWith("62") ||
+          number.length < 10 ||
+          number.length > 15
+        ) {
+
+          await sendTelegram(
+            token,
+            userChatId,
+
+`❌ <b>Nomor tidak valid</b>
 
 Gunakan nomor XL / AXIS Indonesia.
 
 Contoh:
 
-\`/cek 083843750924\``
-        );
+<code>/cek 083843750924</code>`
+          );
 
-        return res.status(200).json({
-          status: true
-        });
-      }
-
-
-      if (
-        number.length < 10 ||
-        number.length > 15
-      ) {
-
-        await sendMessage(
-          token,
-          chatId,
-          `❌ *Nomor tidak valid.*
-
-Panjang nomor tidak sesuai.`
-        );
-
-        return res.status(200).json({
-          status: true
-        });
-      }
+          return res.status(200).json({
+            success: true
+          });
+        }
 
 
-      // ========================================
-      // PESAN LOADING
-      // ========================================
+        // ==================================================
+        // LOADING
+        // ==================================================
 
-      const loadingMessage =
-        await sendMessage(
-          token,
-          chatId,
-          `🔍 *SEDANG MENGECEK*
+        const loading =
+          await sendTelegram(
+            token,
+            userChatId,
+
+`🔎 <b>SEDANG MENGECEK</b>
 
 📱 Nomor:
-\`${number}\`
+<code>${escapeHTML(number)}</code>
 
 ⏳ Mohon tunggu...`
-        );
+          );
 
 
-      // ========================================
-      // API XL / AXIS
-      // ========================================
+        // ==================================================
+        // API XL / AXIS
+        // ==================================================
 
-      const apiUrl =
-        "https://api.dns-server.biz.id/api/cekxl?msisdn=" +
-        encodeURIComponent(number);
+        const apiUrl =
+          "https://api.dns-server.biz.id/api/cekxl?msisdn=" +
+          encodeURIComponent(number);
 
 
-      const apiResponse =
-        await fetch(
-          apiUrl,
-          {
-            method: "GET",
+        const apiResponse =
+          await fetch(
+            apiUrl,
+            {
+              method: "GET",
+              headers: {
+                "x-proxy-token":
+                  "bakul_paket"
+              },
+              cache: "no-store"
+            }
+          );
 
-            headers: {
-              "x-proxy-token":
-                "bakul_paket"
-            },
 
-            cache: "no-store"
-          }
-        );
+        const raw =
+          await apiResponse.text();
 
 
-      const raw =
-        await apiResponse.text();
+        let data;
 
+        try {
 
-      let data;
+          data =
+            JSON.parse(raw);
 
-      try {
+        } catch {
 
-        data =
-          JSON.parse(raw);
+          throw new Error(
+            "API utama mengembalikan response bukan JSON."
+          );
 
-      } catch {
+        }
 
-        throw new Error(
-          "API mengembalikan response bukan JSON."
-        );
-      }
 
+        // ==================================================
+        // RESPONSE ERROR
+        // ==================================================
 
-      // ========================================
-      // CEK RESPONSE
-      // ========================================
+        if (
+          !apiResponse.ok ||
+          data?.status !== true
+        ) {
 
-      if (
-        !apiResponse.ok ||
-        data?.status !== true
-      ) {
+          throw new Error(
+            data?.message ||
+            "Data nomor tidak ditemukan."
+          );
 
-        throw new Error(
-          data?.message ||
-          "Data nomor tidak ditemukan."
-        );
-      }
+        }
 
 
-      // ========================================
-      // DATA UTAMA
-      // ========================================
+        // ==================================================
+        // DATA
+        // ==================================================
 
-      const result =
-        data?.data || {};
+        const result =
+          data?.data || {};
 
-      const dataSp =
-        result?.data_sp || {};
+        const dataSp =
+          result?.data_sp || {};
 
 
-      // ========================================
-      // VOLTE
-      // ========================================
+        // ==================================================
+        // VOLTE
+        // ==================================================
 
-      const volte =
-        dataSp?.status_volte?.value || {};
+        const volte =
+          dataSp?.status_volte?.value || {};
 
 
-      // ========================================
-      // QUOTA
-      // ========================================
+        // ==================================================
+        // QUOTA
+        // ==================================================
 
-      const quota =
-        getQuota(dataSp);
+        const quota =
+          getQuota(dataSp);
 
 
-      const benefit =
-        quota?.benefits?.[0] || {};
+        const benefit =
+          quota?.benefits?.[0] || {};
 
 
-      const packages =
-        quota?.packages || {};
+        const packages =
+          quota?.packages || {};
 
 
-      // ========================================
-      // FORMAT DATA
-      // ========================================
+        // ==================================================
+        // FORMAT
+        // ==================================================
 
-      const resultNumber =
-        result?.msisdn ||
-        number;
-
-
-      const prefix =
-        getValue(
-          dataSp?.prefix?.value
-        );
-
-
-      const status4g =
-        getValue(
-          dataSp?.status_4g?.value
-        );
-
-
-      const dukcapil =
-        getValue(
-          dataSp?.dukcapil?.value
-        );
-
-
-      const activeCard =
-        getValue(
-          dataSp?.active_card?.value
-        );
-
-
-      const volteDevice =
-        statusIcon(
-          volte?.device
-        );
-
-
-      const volteArea =
-        statusIcon(
-          volte?.area
-        );
-
-
-      const volteSimcard =
-        statusIcon(
-          volte?.simcard
-        );
-
-
-      const activePeriod =
-        getValue(
-          dataSp?.active_period?.value
-        );
-
-
-      const gracePeriod =
-        getValue(
-          dataSp?.grace_period?.value
-        );
-
-
-      const packageName =
-        getValue(
-          packages?.name
-        );
-
-
-      const quotaExp =
-        formatDate(
-          packages?.expDate
-        );
-
-
-      const benefitName =
-        getValue(
-          benefit?.bname
-        );
-
-
-      const quotaType =
-        getValue(
-          benefit?.type
-        );
-
-
-      const quotaTotal =
-        getValue(
-          benefit?.quota
-        );
-
-
-      const quotaRemaining =
-        getValue(
-          benefit?.remaining
-        );
-
-
-      // ========================================
-      // HASIL
-      // ========================================
-
-      const resultText = `
-📱 *HASIL CEK XL & AXIS*
-
-━━━━━━━━━━━━━━━━━━
-
-📞 *INFORMASI NOMOR*
-
-Nomor        : \`${resultNumber}\`
-Prefix       : ${prefix}
-Status 4G    : ${status4g}
-Dukcapil     : ${dukcapil}
-Status Kartu : ${activeCard}
-
-━━━━━━━━━━━━━━━━━━
-
-📶 *STATUS VoLTE*
-
-Device       : ${volteDevice}
-Area         : ${volteArea}
-SIM Card     : ${volteSimcard}
-
-━━━━━━━━━━━━━━━━━━
-
-📅 *MASA KARTU*
-
-Aktif        : ${activePeriod}
-Grace Period : ${gracePeriod}
-
-━━━━━━━━━━━━━━━━━━
-
-📦 *PAKET & KUOTA*
-
-Paket        : ${packageName}
-Masa Berlaku : ${quotaExp}
-
-Benefit      : ${benefitName}
-Tipe Kuota   : ${quotaType}
-Total Kuota  : ${quotaTotal}
-Sisa Kuota   : ${quotaRemaining}
-
-━━━━━━━━━━━━━━━━━━
-
-⚡ *XL & AXIS NUMBER CHECKER*
-`.trim();
-
-
-      // ========================================
-      // HAPUS PESAN LOADING
-      // ========================================
-
-      if (
-        loadingMessage?.result?.message_id
-      ) {
-
-        await deleteMessage(
-          token,
-          chatId,
-          loadingMessage.result.message_id
-        );
-
-      }
-
-
-      // ========================================
-      // KIRIM HASIL
-      // ========================================
-
-      await sendMessage(
-        token,
-        chatId,
-        resultText
-      );
-
-
-      return res.status(200).json({
-        status: true
-      });
-    }
-
-
-    // ==========================================
-    // NOMOR LANGSUNG
-    // ==========================================
-
-    const directNumber =
-      text.replace(/\D/g, "");
-
-    if (
-      text &&
-      directNumber.length >= 10 &&
-      directNumber.length <= 15
-    ) {
-
-      let number =
-        directNumber;
-
-
-      if (
-        number.startsWith("0")
-      ) {
-
-        number =
-          "62" +
-          number.slice(1);
-
-      } else if (
-        number.startsWith("8")
-      ) {
-
-        number =
-          "62" +
+        const resultNumber =
+          result?.msisdn ||
           number;
 
+
+        const prefix =
+          getValue(
+            dataSp?.prefix?.value
+          );
+
+
+        const status4g =
+          getValue(
+            dataSp?.status_4g?.value
+          );
+
+
+        const dukcapil =
+          getValue(
+            dataSp?.dukcapil?.value
+          );
+
+
+        const activeCard =
+          getValue(
+            dataSp?.active_card?.value
+          );
+
+
+        const volteDevice =
+          statusIcon(
+            volte?.device
+          );
+
+
+        const volteArea =
+          statusIcon(
+            volte?.area
+          );
+
+
+        const volteSimcard =
+          statusIcon(
+            volte?.simcard
+          );
+
+
+        const activePeriod =
+          getValue(
+            dataSp?.active_period?.value
+          );
+
+
+        const gracePeriod =
+          getValue(
+            dataSp?.grace_period?.value
+          );
+
+
+        const packageName =
+          getValue(
+            packages?.name
+          );
+
+
+        const quotaExp =
+          formatDate(
+            packages?.expDate
+          );
+
+
+        const benefitName =
+          getValue(
+            benefit?.bname
+          );
+
+
+        const quotaType =
+          getValue(
+            benefit?.type
+          );
+
+
+        const quotaTotal =
+          getValue(
+            benefit?.quota
+          );
+
+
+        const quotaRemaining =
+          getValue(
+            benefit?.remaining
+          );
+
+
+        // ==================================================
+        // HASIL TELEGRAM
+        // ==================================================
+
+        const resultText =
+
+`🔎 <b>HASIL CEK XL &amp; AXIS</b>
+
+━━━━━━━━━━━━━━
+
+📱 <b>INFORMASI NOMOR</b>
+
+📞 Nomor: <code>${escapeHTML(resultNumber)}</code>
+📌 Prefix: ${escapeHTML(prefix)}
+📡 4G: ${escapeHTML(status4g)}
+🪪 Dukcapil: ${escapeHTML(dukcapil)}
+📱 Kartu: ${escapeHTML(activeCard)}
+
+━━━━━━━━━━━━━━
+
+📶 <b>VoLTE</b>
+
+• Device: ${escapeHTML(volteDevice)}
+• Area: ${escapeHTML(volteArea)}
+• SIM: ${escapeHTML(volteSimcard)}
+
+━━━━━━━━━━━━━━
+
+📅 <b>MASA KARTU</b>
+
+• Aktif: ${escapeHTML(activePeriod)}
+• Masa Tenggang: ${escapeHTML(gracePeriod)}
+
+━━━━━━━━━━━━━━
+
+📦 <b>PAKET &amp; KUOTA</b>
+
+📦 Paket: ${escapeHTML(packageName)}
+🎁 Benefit: ${escapeHTML(benefitName)}
+📊 Tipe: ${escapeHTML(quotaType)}
+📈 Kuota: ${escapeHTML(quotaTotal)}
+💾 Sisa: ${escapeHTML(quotaRemaining)}
+⏰ Expired: ${escapeHTML(quotaExp)}
+
+━━━━━━━━━━━━━━
+
+⚡ <b>XL &amp; AXIS NUMBER CHECKER</b>`;
+
+
+        // ==================================================
+        // HAPUS LOADING
+        // ==================================================
+
+        if (
+          loading?.ok &&
+          loading?.result?.message_id
+        ) {
+
+          await deleteTelegramMessage(
+            token,
+            userChatId,
+            loading.result.message_id
+          );
+
+        }
+
+
+        // ==================================================
+        // KIRIM HASIL
+        // ==================================================
+
+        await sendTelegram(
+          token,
+          userChatId,
+          resultText
+        );
+
+
+        return res.status(200).json({
+          success: true
+        });
       }
 
 
-      await sendMessage(
+      // ==================================================
+      // COMMAND TIDAK DIKENAL
+      // ==================================================
+
+      await sendTelegram(
         token,
-        chatId,
-        `💡 Untuk mengecek nomor, gunakan:
+        userChatId,
 
-\`/cek ${number}\``
-      );
-
-      return res.status(200).json({
-        status: true
-      });
-    }
-
-
-    // ==========================================
-    // PERINTAH TIDAK DIKENAL
-    // ==========================================
-
-    await sendMessage(
-      token,
-      chatId,
-      `❓ *Perintah tidak dikenal.*
+`❓ <b>Perintah tidak dikenal</b>
 
 Gunakan:
 
-\`/cek 083843750924\`
+<code>/cek 083843750924</code>
 
 atau:
 
-/help`
-    );
+<code>/help</code>`
+      );
 
+
+      return res.status(200).json({
+        success: true
+      });
+
+    }
+
+
+    // ==================================================
+    // NOTIFIKASI WEBSITE
+    // ==================================================
+
+    const type =
+      body.type;
+
+
+    let message = "";
+
+
+    // ==================================================
+    // WEBSITE DIKUNJUNGI
+    // ==================================================
+
+    if (
+      type === "visit"
+    ) {
+
+      message =
+
+`🌐 <b>WEBSITE DIKUNJUNGI</b>
+
+👤 Ada pengunjung membuka website
+🕐 Waktu: ${new Date().toLocaleString(
+  "id-ID",
+  {
+    timeZone: "Asia/Jakarta"
+  }
+)}
+
+━━━━━━━━━━━━━━
+📱 <b>XL &amp; AXIS CHECKER</b>`;
+
+    }
+
+
+    // ==================================================
+    // CEK NOMOR DARI WEBSITE
+    // ==================================================
+
+    else if (
+      type === "check"
+    ) {
+
+      const number =
+        String(
+          body.number || "-"
+        );
+
+
+      // ==================================================
+      // MASKING NOMOR
+      // ==================================================
+
+      const maskedNumber =
+        number.length > 7
+          ? number.slice(0, 4) +
+            "******" +
+            number.slice(-3)
+          : "******";
+
+
+      const result =
+        body.result || {};
+
+
+      message =
+
+`🔎 <b>CEK KUOTA</b>
+
+📱 Nomor: <code>${escapeHTML(
+  maskedNumber
+)}</code>
+
+━━━━━━━━━━━━━━
+📊 <b>INFORMASI</b>
+
+📌 Prefix: ${escapeHTML(
+  result.prefix || "-"
+)}
+📡 4G: ${escapeHTML(
+  result.status4g || "-"
+)}
+🪪 Dukcapil: ${escapeHTML(
+  result.dukcapil || "-"
+)}
+📱 Kartu: ${escapeHTML(
+  result.activeCard || "-"
+)}
+
+━━━━━━━━━━━━━━
+📶 <b>VoLTE</b>
+
+• Device: ${escapeHTML(
+  result.volteDevice || "-"
+)}
+• Area: ${escapeHTML(
+  result.volteArea || "-"
+)}
+• SIM: ${escapeHTML(
+  result.volteSimcard || "-"
+)}
+
+━━━━━━━━━━━━━━
+📅 Masa Aktif: ${escapeHTML(
+  result.activePeriod || "-"
+)}
+⚠️ Masa Tenggang: ${escapeHTML(
+  result.gracePeriod || "-"
+)}
+
+━━━━━━━━━━━━━━
+📦 <b>PAKET &amp; KUOTA</b>
+
+📦 Paket: ${escapeHTML(
+  result.packageName || "-"
+)}
+🎁 Benefit: ${escapeHTML(
+  result.benefit || "-"
+)}
+📊 Tipe: ${escapeHTML(
+  result.quotaType || "-"
+)}
+📈 Kuota: ${escapeHTML(
+  result.quotaTotal || "-"
+)}
+💾 Sisa: ${escapeHTML(
+  result.quotaRemaining || "-"
+)}
+⏰ Expired: ${escapeHTML(
+  result.quotaExp || "-"
+)}
+
+━━━━━━━━━━━━━━
+🕐 ${new Date().toLocaleString(
+  "id-ID",
+  {
+    timeZone: "Asia/Jakarta"
+  }
+)}`;
+
+    }
+
+
+    // ==================================================
+    // TYPE TIDAK VALID
+    // ==================================================
+
+    else {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Tipe notifikasi tidak valid"
+      });
+
+    }
+
+
+    // ==================================================
+    // KIRIM TELEGRAM
+    // ==================================================
+
+    const telegramUrl =
+      `https://api.telegram.org/bot${token}/sendMessage`;
+
+
+    const response =
+      await fetch(
+        telegramUrl,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            chat_id:
+              chatId,
+
+            text:
+              message,
+
+            parse_mode:
+              "HTML"
+          })
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      !response.ok ||
+      !data.ok
+    ) {
+
+      console.error(
+        "Telegram API:",
+        data
+      );
+
+      return res.status(502).json({
+        success: false,
+        message:
+          "Gagal mengirim notifikasi Telegram"
+      });
+
+    }
+
+
+    // ==================================================
+    // SUCCESS
+    // ==================================================
 
     return res.status(200).json({
-      status: true
+      success: true
     });
 
 
   } catch (error) {
 
     console.error(
-      "TELEGRAM BOT ERROR:",
+      "TELEGRAM ERROR:",
       error
     );
 
 
-    // ========================================
-    // ERROR KE USER
-    // ========================================
-
-    try {
-
-      const token =
-        process.env.TELEGRAM_BOT_TOKEN;
-
-      const chatId =
-        req.body?.message?.chat?.id;
-
-      if (
-        token &&
-        chatId
-      ) {
-
-        await sendMessage(
-          token,
-          chatId,
-          `❌ *GAGAL MELAKUKAN PENGECEKAN*
-
-${escapeMarkdown(
-  error?.message ||
-  "Terjadi kesalahan."
-)}`
-        );
-
-      }
-
-    } catch (sendError) {
-
-      console.error(
-        "SEND ERROR:",
-        sendError
-      );
-
-    }
-
-
-    return res.status(200).json({
-      status: false,
+    return res.status(500).json({
+      success: false,
       message:
-        error?.message ||
-        "Terjadi kesalahan."
+        "Terjadi kesalahan server",
+      error:
+        error?.message || "-"
     });
+
   }
+
 }
 
 
@@ -708,29 +832,23 @@ function getQuota(dataSp) {
     dataSp?.quotas?.value;
 
 
-  if (!Array.isArray(quotas)) {
+  if (
+    !Array.isArray(quotas)
+  ) {
     return null;
   }
-
-
-  /*
-    Struktur yang diharapkan:
-
-    quotas.value
-    [
-      [
-        {
-          benefits: [],
-          packages: {}
-        }
-      ]
-    ]
-  */
 
 
   for (
     const group of quotas
   ) {
+
+    // Bentuk:
+    // [
+    //   [
+    //     { benefits, packages }
+    //   ]
+    // ]
 
     if (
       Array.isArray(group)
@@ -751,12 +869,19 @@ function getQuota(dataSp) {
         ) {
 
           return item;
-
         }
 
       }
 
-    } else if (
+    }
+
+
+    // Bentuk:
+    // [
+    //   { benefits, packages }
+    // ]
+
+    else if (
       group &&
       (
         Array.isArray(
@@ -769,6 +894,7 @@ function getQuota(dataSp) {
       return group;
 
     }
+
   }
 
 
@@ -777,7 +903,7 @@ function getQuota(dataSp) {
 
 
 // ==================================================
-// VALUE
+// GET VALUE
 // ==================================================
 
 function getValue(value) {
@@ -789,8 +915,8 @@ function getValue(value) {
   ) {
 
     return "-";
-
   }
+
 
   return String(value);
 }
@@ -836,7 +962,6 @@ function formatDate(value) {
   ) {
 
     return String(value);
-
   }
 
 
@@ -854,33 +979,36 @@ function formatDate(value) {
 
 
 // ==================================================
-// ESCAPE MARKDOWN
+// ESCAPE HTML TELEGRAM
 // ==================================================
 
-function escapeMarkdown(text) {
+function escapeHTML(value) {
 
-  return String(text)
-    .replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+  return String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 
 // ==================================================
-// SEND TELEGRAM MESSAGE
+// SEND TELEGRAM
 // ==================================================
 
-async function sendMessage(
+async function sendTelegram(
   token,
   chatId,
-  text
+  message
 ) {
 
-  const url =
+  const telegramUrl =
     `https://api.telegram.org/bot${token}/sendMessage`;
 
 
   const response =
     await fetch(
-      url,
+      telegramUrl,
       {
         method: "POST",
 
@@ -890,37 +1018,45 @@ async function sendMessage(
         },
 
         body: JSON.stringify({
-          chat_id: chatId,
-          text: text,
-          parse_mode: "Markdown"
+          chat_id:
+            chatId,
+
+          text:
+            message,
+
+          parse_mode:
+            "HTML"
         })
       }
     );
 
 
-  const result =
+  const data =
     await response.json();
 
 
-  if (!response.ok) {
+  if (
+    !response.ok ||
+    !data.ok
+  ) {
 
     console.error(
-      "Telegram sendMessage error:",
-      result
+      "Telegram sendMessage:",
+      data
     );
 
   }
 
 
-  return result;
+  return data;
 }
 
 
 // ==================================================
-// DELETE TELEGRAM MESSAGE
+// DELETE MESSAGE
 // ==================================================
 
-async function deleteMessage(
+async function deleteTelegramMessage(
   token,
   chatId,
   messageId
@@ -943,8 +1079,11 @@ async function deleteMessage(
         },
 
         body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId
+          chat_id:
+            chatId,
+
+          message_id:
+            messageId
         })
       }
     );
@@ -952,7 +1091,7 @@ async function deleteMessage(
   } catch (error) {
 
     console.error(
-      "Delete message error:",
+      "DELETE TELEGRAM ERROR:",
       error
     );
 
